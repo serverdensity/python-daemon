@@ -24,8 +24,8 @@ import atexit
 import os
 import sys
 import time
+import signal
 
-from signal import SIGTERM 
 
 class Daemon:
 	"""
@@ -33,11 +33,15 @@ class Daemon:
 	
 	Usage: subclass the Daemon class and override the run() method
 	"""
-	def __init__(self, pidfile, stdin=os.devnull, stdout=os.devnull, stderr=os.devnull):
+	def __init__(self, pidfile, stdin=os.devnull, stdout=os.devnull, stderr=os.devnull, home_dir='.', umask=022, verbose=1):
 		self.stdin = stdin
 		self.stdout = stdout
 		self.stderr = stderr
 		self.pidfile = pidfile
+		self.home_dir = home_dir
+		self.verbose = verbose
+		self.umask = umask
+		self.daemon_alive = True
 	
 	def daemonize(self):
 		"""
@@ -55,9 +59,9 @@ class Daemon:
 			sys.exit(1)
 		
 		# Decouple from parent environment
-		os.chdir("/") 
+		os.chdir(self.home_dir)
 		os.setsid() 
-		os.umask(0) 
+		os.umask(self.umask)
 	
 		# Do second fork
 		try: 
@@ -75,12 +79,21 @@ class Daemon:
 			sys.stderr.flush()
 			si = file(self.stdin, 'r')
 			so = file(self.stdout, 'a+')
-			se = file(self.stderr, 'a+', 0)
+			if self.stderr:
+				se = file(self.stderr, 'a+', 0)
+			else:
+				se = so
 			os.dup2(si.fileno(), sys.stdin.fileno())
 			os.dup2(so.fileno(), sys.stdout.fileno())
 			os.dup2(se.fileno(), sys.stderr.fileno())
-		
-		print "Started"
+
+		def sigtermhandler(signum, frame):
+			self.daemon_alive = False
+		signal.signal(signal.SIGTERM, sigtermhandler)
+		signal.signal(signal.SIGINT, sigtermhandler)
+
+		if self.verbose >= 1:
+			print "Started"
 		
 		# Write pidfile
 		atexit.register(self.delpid) # Make sure pid file is removed if we quit
@@ -95,7 +108,8 @@ class Daemon:
 		Start the daemon
 		"""
 		
-		print "Starting..."
+		if self.verbose >= 1:
+			print "Starting..."
 		
 		# Check for a pidfile to see if the daemon already runs
 		try:
@@ -121,7 +135,8 @@ class Daemon:
 		Stop the daemon
 		"""
 		
-		print "Stopping..."
+		if self.verbose >= 1:
+			print "Stopping..."
 		
 		# Get the pid from the pidfile
 		try:
@@ -146,7 +161,7 @@ class Daemon:
 		# Try killing the daemon process	
 		try:
 			while 1:
-				os.kill(pid, SIGTERM)
+				os.kill(pid, signal.SIGTERM)
 				time.sleep(0.1)
 		except OSError, err:
 			err = str(err)
@@ -157,7 +172,8 @@ class Daemon:
 				print str(err)
 				sys.exit(1)
 		
-		print "Stopped"
+		if self.verbose >= 1:
+			print "Stopped"
 
 	def restart(self):
 		"""
