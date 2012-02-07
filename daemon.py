@@ -103,7 +103,7 @@ class Daemon:
 	def delpid(self):
 		os.remove(self.pidfile)
 
-	def start(self):
+	def start(self, *args, **kwargs):
 		"""
 		Start the daemon
 		"""
@@ -128,7 +128,7 @@ class Daemon:
 
 		# Start the daemon
 		self.daemonize()		
-		self.run()
+		self.run(*args, **kwargs)
 
 	def stop(self):
 		"""
