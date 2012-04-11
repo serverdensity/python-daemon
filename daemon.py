@@ -27,7 +27,7 @@ import time
 import signal
 
 
-class Daemon:
+class Daemon(object):
 	"""
 	A generic daemon class.
 	
