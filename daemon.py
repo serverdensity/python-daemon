@@ -87,6 +87,11 @@ class Daemon(object):
 			os.dup2(so.fileno(), sys.stdout.fileno())
 			os.dup2(se.fileno(), sys.stderr.fileno())
 
+            si.close()
+            so.close()
+            if self.stderr:
+                se.close()
+
 		def sigtermhandler(signum, frame):
 			self.daemon_alive = False
 		signal.signal(signal.SIGTERM, sigtermhandler)
