@@ -135,6 +135,8 @@ class Daemon(object):
             else:
                 message = "pidfile %s already exist. Daemon already running?\n"
                 sys.stderr.write(message % self.pidfile)
+                if return_on_exit:
+                    return False
                 sys.exit(1)
 
         # Start the daemon
@@ -152,6 +154,8 @@ class Daemon(object):
         finally:
             # Make sure the pid file gets deleted even in case of errors
             self.delpid()
+            if return_on_exit:
+                return _exitcode if _exitcode else False
             sys.exit(_exitcode)
 
     def _shutdown(self, signum=None, frame=None):
