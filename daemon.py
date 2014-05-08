@@ -162,18 +162,18 @@ class Daemon(object):
 
         # Try killing the daemon process
         try:
-            i = 0
+            os.kill(pid, signal.SIGTERM)
+            _stime = time.time() + 10
             while 1:
-                os.kill(pid, signal.SIGTERM)
+                os.getpgid(pid)
                 time.sleep(0.1)
-                i = i + 1
-                if i % 10 == 0:
-                    os.kill(pid, signal.SIGHUP)
+                if time.time() > _stime:
+                    os.kill(pid, signal.SIGTERM)
+                    _stime += 3600
         except OSError, err:
             err = str(err)
             if err.find("No such process") > 0:
-                if os.path.exists(self.pidfile):
-                    os.remove(self.pidfile)
+                self.delpid()
             else:
                 print str(err)
                 sys.exit(1)
