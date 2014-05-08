@@ -95,11 +95,8 @@ class Daemon(object):
             os.dup2(so.fileno(), sys.stdout.fileno())
             os.dup2(se.fileno(), sys.stderr.fileno())
 
-        def sigtermhandler(signum, frame):
-            self.daemon_alive = False
-            
-        signal.signal(signal.SIGTERM, sigtermhandler)
-        signal.signal(signal.SIGINT, sigtermhandler)
+            signal.signal(signal.SIGTERM, self._shutdown)
+            signal.signal(signal.SIGINT, self._shutdown)
 
         if self.verbose >= 1:
             logging.info("Started")
@@ -156,6 +153,12 @@ class Daemon(object):
             # Make sure the pid file gets deleted even in case of errors
             self.delpid()
             sys.exit(_exitcode)
+
+    def _shutdown(self, signum=None, frame=None):
+        self.shutdown(frame)
+
+    def shutdown(self, frame=None):
+        os.kill(self.pid, signal.SIGTERM)
 
     def stop(self):
         """
