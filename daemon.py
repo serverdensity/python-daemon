@@ -144,13 +144,17 @@ class Daemon(object):
         _exitcode = 0
         try:
             self.daemonize()
+            logging.info('Running process')
             self.run(*args, **kwargs)
+            logging.info('Process finished normally.')
         except Exception as e:
             logging.error('Daemonized process threw an exception [%s].' % e)
             tb = traceback.format_exc()
             logging.error(tb)
             _exitcode = 255
         finally:
+            # Make sure the pid file gets deleted even in case of errors
+            self.delpid()
             sys.exit(_exitcode)
 
     def stop(self):
