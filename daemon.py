@@ -113,7 +113,7 @@ class Daemon(object):
         if os.path.exists(self.pidfile):
             os.remove(self.pidfile)
 
-    def start(self, *args, **kwargs):
+    def start(self, return_on_exit=False, overwrite_pid=False, *args, **kwargs):
         """
         Start the daemon
         """
@@ -132,9 +132,12 @@ class Daemon(object):
             pid = None
 
         if pid:
-            message = "pidfile %s already exists. Is it already running?\n"
-            sys.stderr.write(message % self.pidfile)
-            sys.exit(1)
+            if overwrite_pid:
+                self.delpid()
+            else:
+                message = "pidfile %s already exist. Daemon already running?\n"
+                sys.stderr.write(message % self.pidfile)
+                sys.exit(1)
 
         # Start the daemon
         self.daemonize()
