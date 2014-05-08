@@ -28,6 +28,7 @@ import sys
 import time
 import signal
 import logging
+import traceback
 
 
 class Daemon(object):
@@ -140,8 +141,17 @@ class Daemon(object):
                 sys.exit(1)
 
         # Start the daemon
-        self.daemonize()
-        self.run(*args, **kwargs)
+        _exitcode = 0
+        try:
+            self.daemonize()
+            self.run(*args, **kwargs)
+        except Exception as e:
+            logging.error('Daemonized process threw an exception [%s].' % e)
+            tb = traceback.format_exc()
+            logging.error(tb)
+            _exitcode = 255
+        finally:
+            sys.exit(_exitcode)
 
     def stop(self):
         """
