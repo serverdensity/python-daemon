@@ -202,8 +202,11 @@ class Daemon(object):
         return pid
 
     def is_running(self):
+        return self.running
+
+    @property
+    def running(self):
         pid = self.get_pid()
-        print(pid)
         return pid and os.path.exists('/proc/%d' % pid)
 
     def run(self):
@@ -212,3 +215,4 @@ class Daemon(object):
         It will be called after the process has been
         daemonized by start() or restart().
         """
+        raise NotImplemented('You should override this method when you subclass Daemon')
