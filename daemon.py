@@ -27,6 +27,7 @@ import os
 import sys
 import time
 import signal
+import logging
 
 
 class Daemon(object):
@@ -100,7 +101,7 @@ class Daemon(object):
         signal.signal(signal.SIGINT, sigtermhandler)
 
         if self.verbose >= 1:
-            print "Started"
+            logging.info("Started")
 
         # Write pidfile
         atexit.register(
@@ -117,7 +118,7 @@ class Daemon(object):
         """
 
         if self.verbose >= 1:
-            print "Starting..."
+            logging.info('Start daemon')
 
         # Check for a pidfile to see if the daemon already runs
         try:
@@ -144,13 +145,13 @@ class Daemon(object):
         """
 
         if self.verbose >= 1:
-            print "Stopping..."
+            logging.info("Stopping daemon...")
 
         # Get the pid from the pidfile
         pid = self.get_pid()
 
         if not pid:
-            message = "pidfile %s does not exist. Not running?\n"
+            message = "pidfile %s does not exist. Daemon not running?\n"
             sys.stderr.write(message % self.pidfile)
 
             # Just to be sure. A ValueError might occur if the PID file is
@@ -179,7 +180,7 @@ class Daemon(object):
                 sys.exit(1)
 
         if self.verbose >= 1:
-            print "Stopped"
+            logging.info("Stopped daemon")
 
     def restart(self):
         """
