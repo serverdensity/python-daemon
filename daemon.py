@@ -95,8 +95,9 @@ class Daemon(object):
 
         def sigtermhandler(signum, frame):
             self.daemon_alive = False
-            signal.signal(signal.SIGTERM, sigtermhandler)
-            signal.signal(signal.SIGINT, sigtermhandler)
+            
+        signal.signal(signal.SIGTERM, sigtermhandler)
+        signal.signal(signal.SIGINT, sigtermhandler)
 
         if self.verbose >= 1:
             print "Started"
