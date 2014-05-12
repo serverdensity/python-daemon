@@ -55,7 +55,7 @@ class Daemon(object):
         except OSError, e:
             sys.stderr.write(
                 "fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1)
+            os._exit(1)
 
         # Decouple from parent environment
         os.chdir(self.home_dir)
@@ -71,7 +71,7 @@ class Daemon(object):
         except OSError, e:
             sys.stderr.write(
                 "fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1)
+            os._exit(1)
 
         if sys.platform != 'darwin':  # This block breaks on OS X
             # Redirect standard file descriptors
@@ -133,8 +133,10 @@ class Daemon(object):
 
         # Start the daemon
         _exitcode = 0
+
+        self.daemonize()
+
         try:
-            self.daemonize()
             logging.info('Running process')
             self.run(*args, **kwargs)
             logging.info('Process finished normally.')
