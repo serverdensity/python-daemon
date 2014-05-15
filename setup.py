@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name="pythonDaemon",
-      version="1.2",
+      version="1.3",
       description="Python daemon class",
       url="https://github.com/mrares/python-daemon",
       author="Rares Mirica",
