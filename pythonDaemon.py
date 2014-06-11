@@ -168,8 +168,7 @@ class Daemon(object):
 
             # Just to be sure. A ValueError might occur if the PID file is
             # empty but does actually exist
-            if os.path.exists(self.pidfile):
-                os.remove(self.pidfile)
+            self.delpid()
 
             return  # Not an error in a restart
 
