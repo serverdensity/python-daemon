@@ -101,7 +101,10 @@ class Daemon(object):
 
     def delpid(self):
         if os.path.exists(self.pidfile):
-            os.remove(self.pidfile)
+            try:
+                os.remove(self.pidfile)
+            except OSError, e:
+                sys.stderr.write("Could not delete pidfile: %d (%s)\n" % (e.errno, e.strerror))
 
     def start(self, return_on_exit=False, overwrite_pid=False, *args, **kwargs):
         """
