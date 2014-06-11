@@ -112,14 +112,7 @@ class Daemon(object):
             logging.info('Start daemon')
 
         # Check for a pidfile to see if the daemon already runs
-        try:
-            pf = file(self.pidfile, 'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-        except SystemExit:
-            pid = None
+        pid = self.get_pid()
 
         if pid:
             if overwrite_pid:
