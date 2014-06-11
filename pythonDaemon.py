@@ -118,7 +118,7 @@ class Daemon(object):
             if overwrite_pid:
                 self.delpid()
             else:
-                message = "pidfile %s already exist. Daemon already running?\n"
+                message = "pidfile %s already exists. Daemon already running?\n"
                 sys.stderr.write(message % self.pidfile)
                 if return_on_exit:
                     return False
