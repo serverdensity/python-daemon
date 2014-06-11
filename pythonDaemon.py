@@ -163,7 +163,10 @@ class Daemon(object):
         pid = self.get_pid()
 
         if not pid:
-            message = "pidfile %s does not exist. Daemon not running?\n"
+            if os.path.exists(self.pidfile):
+                message = "pidfile %s does not exist. Daemon not running?\n"
+            else:
+                message = "could not read pid from pidfile %s\n"
             sys.stderr.write(message % self.pidfile)
 
             # Just to be sure. A ValueError might occur if the PID file is
