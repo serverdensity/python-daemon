@@ -101,7 +101,10 @@ class Daemon(object):
 
     def delpid(self):
         if os.path.exists(self.pidfile):
-            os.remove(self.pidfile)
+            try:
+                os.remove(self.pidfile)
+            except OSError, e:
+                sys.stderr.write("Could not delete pidfile: %d (%s)\n" % (e.errno, e.strerror))
 
     def start(self, return_on_exit=False, overwrite_pid=False, *args, **kwargs):
         """
@@ -112,20 +115,11 @@ class Daemon(object):
             logging.info('Start daemon')
 
         # Check for a pidfile to see if the daemon already runs
-        try:
-            pf = file(self.pidfile, 'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-        except SystemExit:
-            pid = None
-
-        if pid:
+        if os.path.exists(self.pidfile):
             if overwrite_pid:
                 self.delpid()
             else:
-                message = "pidfile %s already exist. Daemon already running?\n"
+                message = "pidfile %s already exists. Daemon already running?\n"
                 sys.stderr.write(message % self.pidfile)
                 if return_on_exit:
                     return False
@@ -170,13 +164,15 @@ class Daemon(object):
         pid = self.get_pid()
 
         if not pid:
-            message = "pidfile %s does not exist. Daemon not running?\n"
+            if os.path.exists(self.pidfile):
+                message = "pidfile %s does not exist. Daemon not running?\n"
+            else:
+                message = "could not read pid from pidfile %s\n"
             sys.stderr.write(message % self.pidfile)
 
             # Just to be sure. A ValueError might occur if the PID file is
             # empty but does actually exist
-            if os.path.exists(self.pidfile):
-                os.remove(self.pidfile)
+            self.delpid()
 
             return  # Not an error in a restart
 
