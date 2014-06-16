@@ -177,15 +177,17 @@ class Daemon(object):
             return  # Not an error in a restart
 
         # Try killing the daemon process
+        _signal = signal.SIGTERM
         try:
-            os.kill(pid, signal.SIGTERM)
+            os.kill(pid, _signal)
             _stime = time.time() + 10
             while 1:
                 os.getpgid(pid)
                 time.sleep(0.1)
                 if time.time() > _stime:
-                    os.kill(pid, signal.SIGTERM)
-                    _stime += 3600
+                    os.kill(pid, _signal)
+                    _signal = signal.SIGKILL
+                    _stime += 10
         except OSError, err:
             err = str(err)
             if err.find("No such process") > 0:
