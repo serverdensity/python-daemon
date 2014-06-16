@@ -1,25 +1,18 @@
-'''
+"""
 ***
 Modified generic daemon class
 ***
 
 Author:         http://www.jejik.com/articles/2007/02/
                         a_simple_unix_linux_daemon_in_python/www.boxedice.com
+                https://github.com/serverdensity/python-daemon
 
 License:        http://creativecommons.org/licenses/by-sa/3.0/
 
-Changes:        23rd Jan 2009 (David Mytton <david@boxedice.com>)
-                - Replaced hard coded '/dev/null in __init__ with os.devnull
-                - Added OS check to conditionally remove code that doesn't
-                  work on OS X
-                - Added output to console on completion
-                - Tidied up formatting
-                11th Mar 2009 (David Mytton <david@boxedice.com>)
-                - Fixed problem with daemon exiting on Python 2.4
-                  (before SystemExit was part of the Exception base)
-                13th Aug 2010 (David Mytton <david@boxedice.com>
-                - Fixed unhandled exception if PID file is empty
-'''
+Changes:        Various fixes where added in signal handling, pid file handling,
+                return codes and exception handling
+
+"""
 
 # Core modules
 import atexit
@@ -27,6 +20,8 @@ import os
 import sys
 import time
 import signal
+import logging
+import traceback
 
 
 class Daemon(object):
@@ -45,7 +40,6 @@ class Daemon(object):
         self.home_dir = home_dir
         self.verbose = verbose
         self.umask = umask
-        self.daemon_alive = True
 
     def daemonize(self):
         """
@@ -61,7 +55,7 @@ class Daemon(object):
         except OSError, e:
             sys.stderr.write(
                 "fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1)
+            os._exit(1)
 
         # Decouple from parent environment
         os.chdir(self.home_dir)
@@ -77,7 +71,7 @@ class Daemon(object):
         except OSError, e:
             sys.stderr.write(
                 "fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1)
+            os._exit(1)
 
         if sys.platform != 'darwin':  # This block breaks on OS X
             # Redirect standard file descriptors
@@ -93,13 +87,11 @@ class Daemon(object):
             os.dup2(so.fileno(), sys.stdout.fileno())
             os.dup2(se.fileno(), sys.stderr.fileno())
 
-        def sigtermhandler(signum, frame):
-            self.daemon_alive = False
-            signal.signal(signal.SIGTERM, sigtermhandler)
-            signal.signal(signal.SIGINT, sigtermhandler)
+            signal.signal(signal.SIGTERM, self._shutdown)
+            signal.signal(signal.SIGINT, self._shutdown)
 
         if self.verbose >= 1:
-            print "Started"
+            logging.info("Started")
 
         # Write pidfile
         atexit.register(
@@ -108,34 +100,57 @@ class Daemon(object):
         file(self.pidfile, 'w+').write("%s\n" % pid)
 
     def delpid(self):
-        os.remove(self.pidfile)
+        if os.path.exists(self.pidfile):
+            try:
+                os.remove(self.pidfile)
+            except OSError, e:
+                sys.stderr.write("Could not delete pidfile: %d (%s)\n" % (e.errno, e.strerror))
 
-    def start(self, *args, **kwargs):
+    def start(self, return_on_exit=False, overwrite_pid=False, *args, **kwargs):
         """
         Start the daemon
         """
 
         if self.verbose >= 1:
-            print "Starting..."
+            logging.info('Start daemon')
 
         # Check for a pidfile to see if the daemon already runs
-        try:
-            pf = file(self.pidfile, 'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-        except SystemExit:
-            pid = None
-
-        if pid:
-            message = "pidfile %s already exists. Is it already running?\n"
-            sys.stderr.write(message % self.pidfile)
-            sys.exit(1)
+        if os.path.exists(self.pidfile):
+            if overwrite_pid:
+                self.delpid()
+            else:
+                message = "pidfile %s already exists. Daemon already running?\n"
+                sys.stderr.write(message % self.pidfile)
+                if return_on_exit:
+                    return False
+                sys.exit(1)
 
         # Start the daemon
+        _exitcode = 0
+
         self.daemonize()
-        self.run(*args, **kwargs)
+
+        try:
+            logging.info('Running process')
+            self.run(*args, **kwargs)
+            logging.info('Process finished normally.')
+        except Exception as e:
+            logging.error('Daemonized process threw an exception [%s].' % e)
+            tb = traceback.format_exc()
+            logging.error(tb)
+            _exitcode = 255
+        finally:
+            # Make sure the pid file gets deleted even in case of errors
+            self.delpid()
+            if return_on_exit:
+                return _exitcode if _exitcode else False
+            sys.exit(_exitcode)
+
+    def _shutdown(self, signum=None, frame=None):
+        self.shutdown(frame)
+
+    def shutdown(self, frame=None):
+        os.kill(self.pid, signal.SIGTERM)
 
     def stop(self):
         """
@@ -143,42 +158,46 @@ class Daemon(object):
         """
 
         if self.verbose >= 1:
-            print "Stopping..."
+            logging.info("Stopping daemon...")
 
         # Get the pid from the pidfile
         pid = self.get_pid()
 
         if not pid:
-            message = "pidfile %s does not exist. Not running?\n"
+            if os.path.exists(self.pidfile):
+                message = "pidfile %s does not exist. Daemon not running?\n"
+            else:
+                message = "could not read pid from pidfile %s\n"
             sys.stderr.write(message % self.pidfile)
 
             # Just to be sure. A ValueError might occur if the PID file is
             # empty but does actually exist
-            if os.path.exists(self.pidfile):
-                os.remove(self.pidfile)
+            self.delpid()
 
             return  # Not an error in a restart
 
         # Try killing the daemon process
+        _signal = signal.SIGTERM
         try:
-            i = 0
+            os.kill(pid, _signal)
+            _stime = time.time() + 10
             while 1:
-                os.kill(pid, signal.SIGTERM)
+                os.getpgid(pid)
                 time.sleep(0.1)
-                i = i + 1
-                if i % 10 == 0:
-                    os.kill(pid, signal.SIGHUP)
+                if time.time() > _stime:
+                    os.kill(pid, _signal)
+                    _signal = signal.SIGKILL
+                    _stime += 10
         except OSError, err:
             err = str(err)
             if err.find("No such process") > 0:
-                if os.path.exists(self.pidfile):
-                    os.remove(self.pidfile)
+                self.delpid()
             else:
                 print str(err)
                 sys.exit(1)
 
         if self.verbose >= 1:
-            print "Stopped"
+            logging.info("Stopped daemon")
 
     def restart(self):
         """
@@ -199,8 +218,11 @@ class Daemon(object):
         return pid
 
     def is_running(self):
+        return self.running
+
+    @property
+    def running(self):
         pid = self.get_pid()
-        print(pid)
         return pid and os.path.exists('/proc/%d' % pid)
 
     def run(self):
@@ -209,3 +231,4 @@ class Daemon(object):
         It will be called after the process has been
         daemonized by start() or restart().
         """
+        raise NotImplemented('You should override this method when you subclass Daemon')
