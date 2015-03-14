@@ -44,4 +44,4 @@ The `run()` method will be executed just once so if you want the daemon to be do
 
 
   [1]: http://docs.python.org/library/sched.html
-  [2]: https://github.com/boxedice/sd-agent/blob/master/agent.py#L226
+  [2]: https://github.com/serverdensity/sd-agent/blob/master/agent.py#L339
