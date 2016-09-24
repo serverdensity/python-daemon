@@ -2,12 +2,9 @@
 ***
 Modified generic daemon class
 ***
-
 Author:         http://www.jejik.com/articles/2007/02/
                         a_simple_unix_linux_daemon_in_python/www.boxedice.com
-
 License:        http://creativecommons.org/licenses/by-sa/3.0/
-
 Changes:        23rd Jan 2009 (David Mytton <david@boxedice.com>)
                 - Replaced hard coded '/dev/null in __init__ with os.devnull
                 - Added OS check to conditionally remove code that doesn't
@@ -32,9 +29,22 @@ import signal
 
 
 class Daemon(object):
+
+    # Default daemon parameters.
+    # File mode creation mask of the daemon.
+    UMASK = 0
+
+    # Default maximum for the number of available file descriptors.
+    MAXFD = 1024
+
+    # The standard I/O file descriptors are redirected to /dev/null by default.
+    if (hasattr(os, "devnull")):
+       REDIRECT_TO = os.devnull
+    else:
+       REDIRECT_TO = "/dev/null"
+
     """
     A generic daemon class.
-
     Usage: subclass the Daemon class and override the run() method
     """
     def __init__(self, pidfile, stdin=os.devnull,
@@ -69,8 +79,17 @@ class Daemon(object):
             pid = os.fork()
             if pid > 0:
                 # Exit first parent
-                sys.exit(0)
-        except OSError as e:
+                #
+                # exit() or _exit()?
+                # _exit is like exit(), but it doesn't call any functions registered
+                # with atexit (and on_exit) or any registered signal handlers.  It also
+                # closes any open file descriptors.  Using exit() may cause all stdio
+                # streams to be flushed twice and any temporary files may be unexpectedly
+                # removed.  It's therefore recommended that child branches of a fork()
+                # and the parent branch(es) of a daemon use _exit().
+                #sys.exit(0)
+                os._exit(0)
+        except OSError, e:
             sys.stderr.write(
                 "fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
@@ -85,29 +104,41 @@ class Daemon(object):
             pid = os.fork()
             if pid > 0:
                 # Exit from second parent
-                sys.exit(0)
-        except OSError as e:
+                #sys.exit(0)
+                os._exit(0)
+        except OSError, e:
             sys.stderr.write(
                 "fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
 
-        if sys.platform != 'darwin':  # This block breaks on OS X
-            # Redirect standard file descriptors
-            sys.stdout.flush()
-            sys.stderr.flush()
-            si = open(self.stdin, 'r')
-            so = open(self.stdout, 'a+')
-            if self.stderr:
-                try:
-                    se = open(self.stderr, 'a+', 0)
-                except ValueError:
-                    # Python 3 can't have unbuffered text I/O
-                    se = open(self.stderr, 'a+', 1)
-            else:
-                se = so
-            os.dup2(si.fileno(), sys.stdin.fileno())
-            os.dup2(so.fileno(), sys.stdout.fileno())
-            os.dup2(se.fileno(), sys.stderr.fileno())
+        # Use the getrlimit method to retrieve the maximum file descriptor number
+        # that can be opened by this process.  If there is not limit on the
+        # resource, use the default value.
+        #
+        import resource		# Resource usage information.
+        maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+        if (maxfd == resource.RLIM_INFINITY):
+            maxfd = self.MAXFD
+
+        # Iterate through and close all file descriptors.
+        for fd in range(0, maxfd):
+            try:
+                os.close(fd)
+            except OSError:	# ERROR, fd wasn't open to begin with (ignored)
+                pass
+
+        # Redirect the standard I/O file descriptors to the specified file.  Since
+        # the daemon has no controlling terminal, most daemons redirect stdin,
+        # stdout, and stderr to /dev/null.  This is done to prevent side-effects
+        # from reads and writes to the standard I/O file descriptors.
+
+        # This call to open is guaranteed to return the lowest file descriptor,
+        # which will be 0 (stdin), since it was closed above.
+        os.open(self.REDIRECT_TO, os.O_RDWR)	# standard input (0)
+
+        # Duplicate standard input to standard output and standard error.
+        os.dup2(0, 1)			# standard output (1)
+        os.dup2(0, 2)			# standard error (2)
 
         def sigtermhandler(signum, frame):
             self.daemon_alive = False
@@ -125,8 +156,7 @@ class Daemon(object):
         self.log("Started")
 
         # Write pidfile
-        atexit.register(
-            self.delpid)  # Make sure pid file is removed if we quit
+        atexit.register(self.delpid)  # Make sure pid file is removed if we quit
         pid = str(os.getpid())
         open(self.pidfile, 'w+').write("%s\n" % pid)
 
@@ -247,3 +277,4 @@ class Daemon(object):
         daemonized by start() or restart().
         """
         raise NotImplementedError
+
