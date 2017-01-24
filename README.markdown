@@ -7,6 +7,13 @@ This is a Python class that will daemonize your Python script so it can continue
 
 Based on [this original version from jejik.com](http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/).
 
+
+Install
+---------------------
+
+	pip install py_daemon
+
+
 Usage
 ---------------------
 
