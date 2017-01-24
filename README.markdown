@@ -21,6 +21,10 @@ Define a class which inherits from `Daemon` and has a `run()` method (which is w
 
 	from daemon import Daemon
 	
+	# if installed from pypi
+	from py_daemon.py_daemon import Daemon
+	
+	
 	class pantalaimon(Daemon):
 		def run(self):
 			# Do stuff
