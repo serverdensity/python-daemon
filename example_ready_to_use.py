@@ -21,6 +21,10 @@ try:
     
     if(str.lower(str(sys.argv[1])) == "debug"):
         pineMarten.run()
+ 
+    else:
+        print "The argument is missing. The authorized arguments are start , stop , restart , debug"
+        pass
 
 except Exception as e:
     print "The argument is missing. The authorized arguments are start , stop , restart , debug"
