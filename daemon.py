@@ -115,7 +115,6 @@ class Daemon(object):
         # Use the getrlimit method to retrieve the maximum file descriptor number
         # that can be opened by this process.  If there is not limit on the
         # resource, use the default value.
-        #
         maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
         if (maxfd == resource.RLIM_INFINITY):
             maxfd = self.MAXFD
