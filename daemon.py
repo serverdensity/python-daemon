@@ -26,6 +26,7 @@ import os
 import sys
 import time
 import signal
+import resource		# Resource usage information.
 
 
 class Daemon(object):
@@ -115,7 +116,6 @@ class Daemon(object):
         # that can be opened by this process.  If there is not limit on the
         # resource, use the default value.
         #
-        import resource		# Resource usage information.
         maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
         if (maxfd == resource.RLIM_INFINITY):
             maxfd = self.MAXFD
