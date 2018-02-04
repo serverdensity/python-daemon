@@ -90,7 +90,7 @@ class Daemon(object):
                 # and the parent branch(es) of a daemon use _exit().
                 #sys.exit(0)
                 os._exit(0)
-        except OSError, e:
+        except OSError as e:
             sys.stderr.write(
                 "fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
@@ -107,7 +107,7 @@ class Daemon(object):
                 # Exit from second parent
                 #sys.exit(0)
                 os._exit(0)
-        except OSError, e:
+        except OSError as e:
             sys.stderr.write(
                 "fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
