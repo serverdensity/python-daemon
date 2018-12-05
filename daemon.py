@@ -27,6 +27,16 @@ Changes:  23rd Jan 2009 (David Mytton <david@boxedice.com>)
           - Added a log file. A daemon process is disconnected from the
             terminal so cannot print to the screen after the process is
             daemonized.
+
+Exit values
+-----------
+0 = Exited as expected no errors.
+1 = Fork #1 failed
+2 = Fork #2 failed
+3 = Another process has a lock.
+4 = User could not create PID file.
+5 = Could not find a process to kill.
+6 = An external signal caused exit.
 """
 
 # Core modules
@@ -48,6 +58,7 @@ class Daemon(object):
 
     Usage: subclass the Daemon class and override the run() method
     """
+
     def __init__(self, pidfile, stdin=os.devnull, stdout=os.devnull,
                  stderr=os.devnull, home_dir='.', umask=0o22, verbose=1,
                  use_gevent=False, use_eventlet=False, logger_name=''):
@@ -58,7 +69,6 @@ class Daemon(object):
         self.home_dir = home_dir
         self.verbose = verbose
         self.umask = umask
-        self.daemon_alive = True
         self.use_gevent = use_gevent
         self.use_eventlet = use_eventlet
         self._pf = None
@@ -82,13 +92,13 @@ class Daemon(object):
             eventlet.tpool.killall()
         try:
             pid = os.fork()
+        except OSError as e:
+            self._log.error("Fork #1 failed: %d (%s)\n", e.errno, e.strerror)
+            sys.exit(1)
+        else:
             if pid > 0:
                 # Exit first parent
                 sys.exit(0)
-        except OSError as e:
-            sys.stderr.write(
-                "fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1)
 
         # Decouple from parent environment
         os.chdir(self.home_dir)
@@ -98,13 +108,13 @@ class Daemon(object):
         # Do second fork
         try:
             pid = os.fork()
+        except OSError as e:
+            self._log.error("Fork #2 failed: %d (%s)\n", e.errno, e.strerror)
+            sys.exit(2)
+        else:
             if pid > 0:
                 # Exit from second parent
                 sys.exit(0)
-        except OSError as e:
-            sys.stderr.write(
-                "fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(2)
 
         if sys.platform != 'darwin':  # This block breaks on OS X
             # Redirect standard file descriptors
@@ -112,6 +122,7 @@ class Daemon(object):
             sys.stderr.flush()
             si = open(self.stdin, 'r')
             so = open(self.stdout, 'a+')
+
             if self.stderr:
                 try:
                     se = open(self.stderr, 'a+', 0)
@@ -126,9 +137,8 @@ class Daemon(object):
             os.dup2(se.fileno(), sys.stderr.fileno())
 
         def sigtermhandler(signum, frame):
-            self.daemon_alive = False
-            self.unlock_pid_file()
-            sys.exit(0)
+            if self.get_pid():
+                self._stop()
 
         if self.use_gevent:
             import gevent
@@ -148,36 +158,38 @@ class Daemon(object):
         user = pwd.getpwuid(os.getuid()).pw_name
 
         try:
-            self._pf = open(self.pidfile, 'a+')
+            if not self._pf: self._pf = open(self.pidfile, 'a+')
             fcntl.flock(self._pf.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            msg = "Successfully created/locked pid file %s."
-            self._log.info(msg, self.pidfile)
         except IOError as e:
+            self._pf.close()
             msg = ("Another process has a lock on this file %s for user "
                    "'%s', %s (%s)")
             self._log.warning(msg, self.pidfile, user, e.errno, e.strerror)
             sys.exit(3)
-        except OSError as e:
+        except OSError as e: # pragma: no cover
             msg = "User '%s' could not create path: %s, %s (%s)"
             self._log.error(msg, user, self.pidfile, e.errno, e.strerror)
             sys.exit(4)
+        else:
+            msg = "Successfully created/locked pid file %s."
+            self._log.info(msg, self.pidfile)
 
     def unlock_pid_file(self):
         """
         Unlock a file. The OS will unlock the file when the app is no
-        longer running.
+        longer running, so this may never get called.
         """
-        if self._pf:
-            try:
-                fcntl.flock(self._pf.fileno(), fcntl.LOCK_UN)
-            except IOError as e:
-                self._pf.close()
-                msg = "The lock file %s could not be unlocked, %s, %s (%s)"
-                self._log.error(msg, self.pidfile, e.errno, e.strerror)
-            else:
-                self._pf.close()
-                msg = "Successfully unlocked lock file %s."
-                self._log.info(msg, self.pidfile)
+        try:
+            pf = open(self.pidfile, 'a+') if not self._pf else self._pf
+            fcntl.flock(pf.fileno(), fcntl.LOCK_UN)
+        except IOError as e: # pragma: no cover
+            pf is not self._pf and pf.close()
+            msg = "The lock file %s could not be unlocked, %s, %s (%s)"
+            self._log.error(msg, self.pidfile, e.errno, e.strerror)
+        else:
+            pf is not self._pf and pf.close()
+            msg = "Successfully unlocked PID file %s."
+            self._log.info(msg, self.pidfile)
 
     def start(self, *args, **kwargs):
         """
@@ -191,13 +203,13 @@ class Daemon(object):
         # Update the pid in the PID file, can only be done after
         # daemonization.
         self._update_pid_file()
-        self._log.info("Started")
+        self._log.info("...Started")
         self.run(*args, **kwargs)
 
     def _update_pid_file(self):
-        pid = os.getpid()
         self._pf.seek(io.SEEK_SET)
-        self._pf.write("{:d}\n".format(pid))
+        self._pf.truncate()
+        self._pf.write("{:d}\n".format(os.getpid()))
         self._pf.flush()
 
     def stop(self):
@@ -205,7 +217,6 @@ class Daemon(object):
         Stop the daemon
         """
         self._log.info("Stopping...")
-
         # Get the pid from the pidfile
         pid = self.get_pid()
 
@@ -219,59 +230,65 @@ class Daemon(object):
             i = 0
 
             while True:
+                i += 1
+                self._log.debug("Trying SIGTERM %s times.", i)
                 os.kill(pid, signal.SIGTERM)
-                time.sleep(0.1)
-                i = i + 1
+                time.sleep(0.2)
 
                 if i % 10 == 0:
-                    os.kill(pid, signal.SIGHUP)
-        except OSError as err:
-            self._log.error(err)
-            sys.exit(5)
-        else:
-            self.unlock_pid_file()
+                    self._log.debug("Trying SIGKILL.")
+                    os.kill(pid, signal.SIGKILL)
 
-        self._log.info("Stopped")
+                if not self.is_running(pid): break
+        except OSError as e:
+            self._log.error(e)
+            sys.exit(5)
+
+        self._log.info("...Stopped")
+
+    def _stop(self):
+        self.unlock_pid_file()
+        sys.exit(6)
 
     def restart(self):
         """
         Restart the daemon
         """
         self.stop()
+        time.sleep(1.0)
         self.start()
 
     def get_pid(self):
         try:
-            pf = open(self.pidfile, 'r')
-        except (IOError, SystemExit) as e:
-            self._log.error(e)
+            pf = open(self.pidfile, 'r') if not self._pf else self._pf
+        except (IOError, SystemExit) as e: # pragma: no cover
+            self._log.error("Could not open pid file %s, %s", self.pidfile, e)
             pid = None
         else:
             pid = int(pf.read().strip())
-            pf.close()
+            pf is not self._pf and pf.close()
+            pid = None if not self.is_running(pid) else pid
 
         return pid
 
-    def is_running(self):
+    def is_running(self, pid):
         result = False
-        pid = self.get_pid()
 
         if pid is None:
-            self._log.info('Process is stopped')
-            result = False
+            self._log.info('Process has stopped.')
         elif os.path.exists('/proc/%d' % pid):
-            self._log.info('Process (pid %d) is running...', pid)
+            self._log.info('Process (pid %d) is running.', pid)
             result = True
         else:
-            self._log.info('Process (pid %d) is killed', pid)
+            self._log.info('Process (pid %d) is not running.', pid)
 
         return result
 
     def run(self):
         """
-        You should override this method when you subclass Daemon.
-        It will be called after the process has been
-        daemonized by start() or restart().
+        You should override this method when you subclass Daemon. It will
+        be called after the process has been daemonized by start() or
+        restart().
         """
         raise NotImplementedError
 
@@ -283,8 +300,9 @@ if __name__ == '__main__':
             while True:
                 time.sleep(1.0)
 
-    base_dir = os.path.dirname(os.path.dirname(__file__))
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     log_path = os.path.join(base_dir, 'logs')
+    not os.path.isdir(log_path) and os.mkdir(log_path, 0o0775)
     pidfile = os.path.abspath(os.path.join(log_path, 'daemon.pid'))
     log_format = ("%(asctime)s %(levelname)s %(name)s %(funcName)s "
                   "[line:%(lineno)d] %(message)s")
@@ -292,5 +310,7 @@ if __name__ == '__main__':
     logging.basicConfig(filename=logfile, format=log_format,
                         level=logging.DEBUG)
     #logging.basicConfig(format=log_format)
-    md = MyDaemon(pidfile, verbose=1)
-    md.start()
+    md = MyDaemon(pidfile, verbose=2)
+    arg = sys.argv[1] if len(sys.argv) == 2 else ''
+    arg = 'start' if arg not in ('start', 'stop', 'restart') else arg
+    getattr(md, arg)()
