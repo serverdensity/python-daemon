@@ -17,6 +17,9 @@ matrix:
     - os: osx
       language: generic
       python:
+  allow_failures:
+    - python: "3.8-dev"
+    - python: "nightly"
 
 install: pip install tox-travis coveralls
 
@@ -26,11 +29,3 @@ before_install:
 
 script:
     - tox
-after_success:
-    - coveralls
-
-matrix:
-  allow_failures:
-    - python: "3.8-dev"
-    - python: "nightly"
-
