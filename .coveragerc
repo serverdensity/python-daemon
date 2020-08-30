@@ -1,0 +1,17 @@
+[run]
+omit =
+    *tests*
+
+[report]
+show_missing = True
+skip_covered = True
+precision = 3
+
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+[html]
+title = Python Daemonizer
+directory = docs/htmlcov

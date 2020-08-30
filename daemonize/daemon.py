@@ -22,8 +22,8 @@ Changes:  23rd Jan 2009 (David Mytton <david@boxedice.com>)
           23rd Nov 2018 (Carl Nobile <carl.nobile@gmail.com>)
           - Now using fcntl to put an OS lock on the pid file, this will
             catch all instances of the application exiting including
-            application and machine crashes. The PID file no longer needs
-            to be deleted.
+            application and machine crashes plus the PID file no longer
+            needs to be deleted.
           - Added a log file. A daemon process is disconnected from the
             terminal so cannot print to the screen after the process is
             daemonized.
@@ -36,7 +36,7 @@ Exit values
 3 = Another process has a lock.
 4 = User could not create PID file.
 5 = Could not find a process to kill.
-6 = An external signal caused exit.
+6 = An external signal caused exit (Could actually be a normal way to kill).
 """
 
 # Core modules
@@ -242,13 +242,19 @@ class Daemon(object):
                 if not self.is_running(pid): break
         except OSError as e:
             self._log.error(e)
+            self.stop_callback()
             sys.exit(5)
 
+        self.stop_callback()
         self._log.info("...Stopped")
 
     def _stop(self):
         self.unlock_pid_file()
+        self.stop_callback()
         sys.exit(6)
+
+    def stop_callback(self):
+        return
 
     def restart(self):
         """
@@ -265,7 +271,8 @@ class Daemon(object):
             self._log.error("Could not open pid file %s, %s", self.pidfile, e)
             pid = None
         else:
-            pid = int(pf.read().strip())
+            pid_txt = pf.read().strip()
+            pid = int(pid_txt) if pid_txt else None
             pf is not self._pf and pf.close()
             pid = None if not self.is_running(pid) else pid
 
@@ -276,7 +283,7 @@ class Daemon(object):
 
         if pid is None:
             self._log.info('Process has stopped.')
-        elif os.path.exists('/proc/%d' % pid):
+        elif os.path.exists('/proc/{:d}'.format(pid)):
             self._log.info('Process (pid %d) is running.', pid)
             result = True
         else:
@@ -290,10 +297,10 @@ class Daemon(object):
         be called after the process has been daemonized by start() or
         restart().
         """
-        raise NotImplementedError
+        raise NotImplementedError("The run() method must be implemented.")
 
 
-if __name__ == '__main__':
+if __name__ == '__main__': # pragma: no cover
     class MyDaemon(Daemon):
 
         def run(self):

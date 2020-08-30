@@ -1,11 +1,16 @@
+#
+# daemonize/tests/text_daemon.py
+#
+from __future__ import absolute_import
+
+from datetime import datetime
 import fcntl
 import io
+import logging
 import os
 import sys
 import time
 import unittest
-
-from daemon import Daemon
 
 try:
     from unittest.mock import patch
@@ -13,32 +18,36 @@ except:
     # Python 2.x doesn't have mock, you'll need to install it.
     from mock import patch
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))))
+sys.path.append(BASE_DIR)
+
+from daemonize import Daemon
+
+from .t_daemon import TDaemon
+
+LOG_FILE = 'test_daemon.log'
 LOG_PATH = os.path.join(BASE_DIR, 'logs')
 not os.path.isdir(LOG_PATH) and os.mkdir(LOG_PATH, 0o0775)
 
 
-class TDaemon(Daemon):
-    daemon = os.path.join(LOG_PATH, 'testing_daemon')
-
-    def __init__(self, *args, **kwargs):
-        super(TDaemon, self).__init__(*args, **kwargs)
-        testoutput = open(self.daemon, 'w')
-        testoutput.write('inited')
-        testoutput.close()
-
-    def run(self):
-        time.sleep(0.3)
-        testoutput = open(self.daemon, 'w')
-        testoutput.write('finished')
-        testoutput.close()
+def create_logger(logfile=LOG_FILE):
+    log_format = ("%(asctime)s %(levelname)s %(name)s %(funcName)s "
+                  "[line:%(lineno)d] %(message)s")
+    logfile = os.path.abspath(os.path.join(LOG_PATH, logfile))
+    logging.basicConfig(filename=logfile, format=log_format,
+                        level=logging.DEBUG)
 
 
 def control_daemon(action):
-    os.system(" ".join((sys.executable, __file__, action)))
+    t_daemon_path = os.path.join(BASE_DIR, 'daemonize', 'tests', 't_daemon.py')
+    cmd = " ".join((sys.executable, t_daemon_path, action))
+    os.system(cmd)
 
 
 class BaseTestDaemon(unittest.TestCase):
+    #_multiprocess_can_split_ = True
+    _multiprocess_shared_ = True
     pidfile = os.path.join(LOG_PATH, 'testing_daemon.pid')
 
     @property
@@ -68,6 +77,16 @@ class BaseTestDaemon(unittest.TestCase):
 class TestRunningDaemon(BaseTestDaemon):
     testoutput = None
 
+    @classmethod
+    def setUpClass(cls):
+        create_logger()
+
+    ## @classmethod
+    ## def tearDownClass(cls):
+    ##     time.sleep(0.05)
+    ##     cmd = 'rm -f ' + os.path.join(LOG_PATH, 'testing_daemon*')
+    ##     os.system(cmd)
+
     def setUp(self):
         control_daemon('start')
         time.sleep(0.1)
@@ -79,13 +98,9 @@ class TestRunningDaemon(BaseTestDaemon):
         if self.is_pid_file_locked:
             control_daemon('stop')
 
-        time.sleep(0.05)
-        cmd = 'rm -f ' + os.path.join(LOG_PATH, 'testing_daemon*')
-        os.system(cmd)
-
     #@unittest.skip("Temporarily skipped")
     def test_daemon_can_start(self):
-        self.assertTrue(self.pidfile)
+        self.assertTrue(os.path.exists(self.pidfile))
         self.assertEqual(self.testoutput.read(), 'inited')
 
     #@unittest.skip("Temporarily skipped")
@@ -121,15 +136,11 @@ def exit(value):
     pass
 
 
-def create_logger(logfile='test_daemon.log'):
-    log_format = ("%(asctime)s %(levelname)s %(name)s %(funcName)s "
-                  "[line:%(lineno)d] %(message)s")
-    logfile = os.path.abspath(os.path.join(LOG_PATH, logfile))
-    logging.basicConfig(filename=logfile, format=log_format,
-                        level=logging.DEBUG)
-
-
 class TestDaemonCoverage(BaseTestDaemon):
+
+    @classmethod
+    def setUpClass(cls):
+        create_logger()
 
     def setUp(self):
         self._da = Daemon(self.pidfile, verbose=2)
@@ -163,34 +174,20 @@ class TestDaemonCoverage(BaseTestDaemon):
         self._da.lock_pid_file()
         self.assertTrue(self.is_pid_file_locked)
         # Try second lock
-        logfile = 'testing_daemon_redirect.log'
-        create_logger(logfile=logfile)
         da = Daemon(self.pidfile, verbose=2)
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         da.lock_pid_file()
         self.assertTrue(self.is_pid_file_locked)
 
         # Read the log file
+        full_path = os.path.abspath(os.path.join(LOG_PATH, LOG_FILE))
         found = False
 
-        with open(os.path.abspath(os.path.join(LOG_PATH, logfile)), 'r') as lf:
+        with open(full_path, 'r') as lf:
             for line in lf:
-                if "Another process has a lock" in line:
+                if (line.startswith(now) # Be sure we have this test run.
+                    and "Another process has a lock" in line):
                     found = True
                     break
 
         self.assertTrue(found)
-
-
-if __name__ == '__main__':
-    import logging
-
-    if len(sys.argv) == 1:
-        unittest.main()
-    elif len(sys.argv) == 2:
-        arg = sys.argv[1]
-
-        if arg in ('start', 'stop', 'restart'):
-            create_logger()
-            pidfile = os.path.join(LOG_PATH, 'testing_daemon.pid')
-            d = TDaemon(pidfile, verbose=2)
-            getattr(d, arg)()
