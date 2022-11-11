@@ -3,8 +3,8 @@
 Modified generic daemon class
 ***
 
-Author:   http://www.jejik.com/articles/2007/02/
-                 a_simple_unix_linux_daemon_in_python/www.boxedice.com
+This work is based off the original work of Sander Marechal, you can see his
+code at: http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/www.boxedice.com
 
 License:  http://creativecommons.org/licenses/by-sa/3.0/
 
@@ -22,25 +22,26 @@ Changes:  23rd Jan 2009 (David Mytton <david@boxedice.com>)
           23rd Nov 2018 (Carl Nobile <carl.nobile@gmail.com>)
           - Now using fcntl to put an OS lock on the pid file, this will
             catch all instances of the application exiting including
-            application and machine crashes plus the PID file no longer
-            needs to be deleted.
+            application and machine crashes making the PID file no longer
+            necessory to delete before a restart.
           - Added a log file. A daemon process is disconnected from the
-            terminal so cannot print to the screen after the process is
-            daemonized.
+            terminal so cannot print to the screen. The only soluction is to
+            send messages to a log file.
+          10th Nov 2022 (Carl Nobile <carl.nobile@gmail.com>)
+          - Removed support for Python 2.
 
 Exit values
 -----------
-0 = Exited as expected no errors.
+0 = Exited as expected with no errors.
 1 = Fork #1 failed
 2 = Fork #2 failed
 3 = Another process has a lock.
 4 = User could not create PID file.
 5 = Could not find a process to kill.
-6 = An external signal caused exit (Could actually be a normal way to kill).
+6 = An external signal caused the exit (Could actually be a normal way to kill).
 """
 
 # Core modules
-from __future__ import print_function
 import errno
 import fcntl
 import io
@@ -52,7 +53,7 @@ import time
 import signal
 
 
-class Daemon(object):
+class Daemon:
     """
     A generic daemon class.
 
@@ -60,13 +61,40 @@ class Daemon(object):
     """
 
     def __init__(self, pidfile, stdin=os.devnull, stdout=os.devnull,
-                 stderr=os.devnull, home_dir='.', umask=0o22, verbose=1,
+                 stderr=os.devnull, base_dir='.', umask=0o22, verbose=1,
                  use_gevent=False, use_eventlet=False, logger_name=''):
+        """
+        Constructor take the following positional and keyword arguments.
+
+        :param pidfile: The full path to the pid file.
+        :type pidfile: str
+        :param stdin: The stdin stream (default is os.devnull).
+        :type stdin: IO Stream
+        :param stdout: The stdout stream (default is os.devnull).
+        :type stdout: IO Stream
+        :param stderr: The stderr stream (default is os.devnull).
+        :type stderr: IO Stream
+        :param base_dir: Path to base used by the daemon process
+                         (defaults to .).
+        :type base_dir: str
+        :param umask: Set the permissions for the *base_dir* (defaults to 0o22).
+        :type umask: Octal int
+        :param verbose: Sets the logger to various levels. (1 = INFO,
+                        2 = DEBUG, 3 = ERROR, any other number is WARNING)
+        :type verbose: int
+        :param use_gevent: Use gevent for signals (defaults to False).
+        :type use_gevent: bool
+        :param use_eventlet: Use eventlet to kill all processes (defaults
+                             to False).
+        :type use_eventlet: bool
+        :param logger_name: The name of the pre defines logger (default is ''
+                            (root)).
+        """
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
         self.pidfile = pidfile
-        self.home_dir = home_dir
+        self.base_dir = base_dir
         self.verbose = verbose
         self.umask = umask
         self.use_gevent = use_gevent
@@ -78,30 +106,35 @@ class Daemon(object):
             self._log.setLevel(logging.INFO)
         elif verbose == 2:
             self._log.setLevel(logging.DEBUG)
+        elif verbose == 3:
+            self._log.setLevel(logging.ERROR)
         else:
             self._log.setLevel(logging.WARNING)
 
     def daemonize(self):
         """
-        Do the UNIX double-fork magic, see Stevens' "Advanced
-        Programming in the UNIX Environment" for details (ISBN 0201563177)
+        Do the UNIX double-fork magic, see Stevens' 'Advanced
+        Programming in the UNIX Environment' for details (ISBN 0201563177)
         http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
         """
         if self.use_eventlet:
             import eventlet.tpool
             eventlet.tpool.killall()
+
         try:
             pid = os.fork()
         except OSError as e:
             self._log.error("Fork #1 failed: %d (%s)\n", e.errno, e.strerror)
+            logging.shutdown()
             sys.exit(1)
         else:
             if pid > 0:
                 # Exit first parent
+                logging.shutdown()
                 sys.exit(0)
 
         # Decouple from parent environment
-        os.chdir(self.home_dir)
+        os.chdir(self.base_dir)
         os.setsid()
         os.umask(self.umask)
 
@@ -110,10 +143,12 @@ class Daemon(object):
             pid = os.fork()
         except OSError as e:
             self._log.error("Fork #2 failed: %d (%s)\n", e.errno, e.strerror)
+            logging.shutdown()
             sys.exit(2)
         else:
             if pid > 0:
                 # Exit from second parent
+                logging.shutdown()
                 sys.exit(0)
 
         if sys.platform != 'darwin':  # This block breaks on OS X
@@ -165,10 +200,12 @@ class Daemon(object):
             msg = ("Another process has a lock on this file %s for user "
                    "'%s', %s (%s)")
             self._log.warning(msg, self.pidfile, user, e.errno, e.strerror)
+            logging.shutdown()
             sys.exit(3)
         except OSError as e: # pragma: no cover
             msg = "User '%s' could not create path: %s, %s (%s)"
             self._log.error(msg, user, self.pidfile, e.errno, e.strerror)
+            logging.shutdown()
             sys.exit(4)
         else:
             msg = "Successfully created/locked pid file %s."
@@ -194,6 +231,11 @@ class Daemon(object):
     def start(self, *args, **kwargs):
         """
         Start the daemon
+
+        :param args: Any positional arguments to pass to the user's run method.
+        :type args: tuple
+        :param kwargs: Any keyword arguments to pass to the user's run method.
+        :type kwargs: dict
         """
         # Check for a pidfile to see if the daemon already runs
         self.lock_pid_file()
@@ -243,6 +285,7 @@ class Daemon(object):
         except OSError as e:
             self._log.error(e)
             self.stop_callback()
+            logging.shutdown()
             sys.exit(5)
 
         self.stop_callback()
@@ -251,6 +294,7 @@ class Daemon(object):
     def _stop(self):
         self.unlock_pid_file()
         self.stop_callback()
+        logging.shutdown()
         sys.exit(6)
 
     def stop_callback(self):
@@ -279,6 +323,12 @@ class Daemon(object):
         return pid
 
     def is_running(self, pid):
+        """
+        Check to see if the pid is already in use.
+
+        :param pid: The pid found in the pid file.
+        :type pid: int
+        """
         result = False
 
         if pid is None:
@@ -291,11 +341,16 @@ class Daemon(object):
 
         return result
 
-    def run(self):
+    def run(self, *args, **kwards):
         """
         You should override this method when you subclass Daemon. It will
         be called after the process has been daemonized by start() or
         restart().
+
+        :param args: Any positional arguments to pass to the user's run method.
+        :type args: tuple
+        :param kwargs: Any keyword arguments to pass to the user's run method.
+        :type kwargs: dict
         """
         raise NotImplementedError("The run() method must be implemented.")
 

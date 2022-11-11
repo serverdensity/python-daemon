@@ -1,7 +1,6 @@
 #
 # daemonize/tests/text_daemon.py
 #
-from __future__ import absolute_import
 
 from datetime import datetime
 import fcntl
@@ -12,18 +11,13 @@ import sys
 import time
 import unittest
 
-try:
-    from unittest.mock import patch
-except:
-    # Python 2.x doesn't have mock, you'll need to install it.
-    from mock import patch
+from unittest.mock import patch
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__))))
 sys.path.append(BASE_DIR)
 
 from daemonize import Daemon
-
 from .t_daemon import TDaemon
 
 LOG_FILE = 'test_daemon.log'
@@ -101,14 +95,18 @@ class TestRunningDaemon(BaseTestDaemon):
     #@unittest.skip("Temporarily skipped")
     def test_daemon_can_start(self):
         self.assertTrue(os.path.exists(self.pidfile))
-        self.assertEqual(self.testoutput.read(), 'inited')
+        self.assertEqual(self.testoutput.read(), 'initialized')
 
     #@unittest.skip("Temporarily skipped")
     def test_daemon_can_stop(self):
         control_daemon('stop')
-        time.sleep(0.1)
-        self.assertFalse(self.is_pid_file_locked)
-        self.assertEqual(self.testoutput.read(), 'inited')
+
+        for i in range(100):
+            out = self.testoutput.read()
+
+            if out == 'initialized' and not self.is_pid_file_locked:
+                self.assertEqual(out, 'initialized')
+                break
 
     #@unittest.skip("Temporarily skipped")
     def test_daemon_can_finish(self):
@@ -119,15 +117,17 @@ class TestRunningDaemon(BaseTestDaemon):
     #@unittest.skip("Temporarily skipped")
     def test_daemon_can_restart(self):
         self.assertTrue(self.is_pid_file_locked)
-        pidfile = open(self.pidfile)
-        pid1 = pidfile.read()
-        pidfile.close()
+
+        with open(self.pidfile) as f:
+            pid1 = f.read()
+
         control_daemon('restart')
         time.sleep(0.1)
         self.assertTrue(self.is_pid_file_locked)
-        pidfile = open(self.pidfile)
-        pid2 = pidfile.read()
-        pidfile.close()
+
+        with open(self.pidfile) as f:
+            pid2 = f.read()
+
         self.assertNotEqual(pid1, pid2)
 
 

@@ -21,15 +21,15 @@ class TDaemon(Daemon):
 
     def __init__(self, *args, **kwargs):
         super(TDaemon, self).__init__(*args, **kwargs)
-        testoutput = open(self.daemon, 'w')
-        testoutput.write('inited')
-        testoutput.close()
+
+        with open(self.daemon, 'w') as f:
+            f.write('initialized')
 
     def run(self):
         time.sleep(0.3)
-        testoutput = open(self.daemon, 'w')
-        testoutput.write('finished')
-        testoutput.close()
+
+        with open(self.daemon, 'w') as f:
+            f.write('finished')
 
 
 if __name__ == '__main__':
@@ -40,5 +40,5 @@ if __name__ == '__main__':
 
         if arg in ('start', 'stop', 'restart'):
             pidfile = os.path.join(LOG_PATH, 'testing_daemon.pid')
-            d = TDaemon(pidfile, verbose=2)
+            d = TDaemon(pidfile, verbose=3) # Only ERROR and CRITICAL logging.
             getattr(d, arg)()
