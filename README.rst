@@ -2,12 +2,6 @@
 Python Daemonizer Class
 ***********************
 
-.. comment::
-
-   .. image:: http://img.shields.io/pypi/l/python-daemon.svg
-      :target: https://pypi.python.org/pypi/python-daemon
-      :alt: License
-
 .. image:: https://travis-ci.com/cnobile2012/python-daemon.svg?branch=master
    :target: https://travis-ci.com/cnobile2012/python-daemon
    :alt: Build Status
