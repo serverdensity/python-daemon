@@ -26,13 +26,11 @@ tar	: clean
 .PHONY	: tests
 tests	: clean
 	@rm -rf $(DOCS_DIR)/htmlcov
-#	export COVERAGE_PROCESS_START=$(COVERAGE_FILE)
-	@nosetests --with-coverage --cover-erase --cover-html \
-                   --cover-html-dir=$(DOCS_DIR)/htmlcov --nologcapture \
-                   --cover-package=$(PREFIX)/daemonize --processes=-1 \
-                   --process-restartworker #--nocapture
-	coverage combine
-	coverage report
+	@coverage erase --rcfile=$(COVERAGE_FILE)
+	$${VIRTUAL_ENV}/bin/coverage run --rcfile=$(COVERAGE_FILE) \
+        $${VIRTUAL_ENV}/bin/nosetests --nologcapture
+	@coverage report --rcfile=$(COVERAGE_FILE)
+	@echo $(TODAY)
 
 .PHONY	: build
 build	: clean
@@ -65,4 +63,5 @@ clean	:
 clobber	: clean
 	@rm -f $(LOGS_DIR)/*.log
 	@rm -f $(LOGS_DIR)/*.pid
+	@rm -f $(LOGS_DIR)/*.txt
 	@rm -rf __pycache__

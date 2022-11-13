@@ -17,7 +17,7 @@ LOG_PATH = os.path.join(BASE_DIR, 'logs')
 
 
 class TDaemon(Daemon):
-    daemon = os.path.join(LOG_PATH, 'testing_daemon.txt')
+    daemon = os.path.join(LOG_PATH, 'test_daemon.txt')
 
     def __init__(self, *args, **kwargs):
         super(TDaemon, self).__init__(*args, **kwargs)
@@ -39,6 +39,6 @@ if __name__ == '__main__':
         arg = sys.argv[1]
 
         if arg in ('start', 'stop', 'restart'):
-            pidfile = os.path.join(LOG_PATH, 'testing_daemon.pid')
+            pidfile = os.path.join(LOG_PATH, 'test_daemon.pid')
             d = TDaemon(pidfile, verbose=3) # Only ERROR and CRITICAL logging.
             getattr(d, arg)()

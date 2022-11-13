@@ -102,13 +102,13 @@ class Daemon:
         self._pf = None
         self._log = logging.getLogger(logger_name)
 
-        if verbose == 1:
+        if verbose == 1: # pragma: no cover
             self._log.setLevel(logging.INFO)
         elif verbose == 2:
             self._log.setLevel(logging.DEBUG)
-        elif verbose == 3:
+        elif verbose == 3: # pragma: no cover
             self._log.setLevel(logging.ERROR)
-        else:
+        else: # pragma: no cover
             self._log.setLevel(logging.WARNING)
 
     def daemonize(self):
@@ -248,12 +248,6 @@ class Daemon:
         self._log.info("...Started")
         self.run(*args, **kwargs)
 
-    def _update_pid_file(self):
-        self._pf.seek(io.SEEK_SET)
-        self._pf.truncate()
-        self._pf.write("{:d}\n".format(os.getpid()))
-        self._pf.flush()
-
     def stop(self):
         """
         Stop the daemon
@@ -308,20 +302,6 @@ class Daemon:
         time.sleep(1.0)
         self.start()
 
-    def get_pid(self):
-        try:
-            pf = open(self.pidfile, 'r') if not self._pf else self._pf
-        except (IOError, SystemExit) as e: # pragma: no cover
-            self._log.error("Could not open pid file %s, %s", self.pidfile, e)
-            pid = None
-        else:
-            pid_txt = pf.read().strip()
-            pid = int(pid_txt) if pid_txt else None
-            pf is not self._pf and pf.close()
-            pid = None if not self.is_running(pid) else pid
-
-        return pid
-
     def is_running(self, pid):
         """
         Check to see if the pid is already in use.
@@ -340,6 +320,27 @@ class Daemon:
             self._log.info('Process (pid %d) is not running.', pid)
 
         return result
+
+    def get_pid(self):
+        try:
+            pf = open(self.pidfile, 'r') if not self._pf else self._pf
+        except (IOError, SystemExit) as e: # pragma: no cover
+            self._log.error("Could not open pid file %s, %s", self.pidfile, e)
+            pid = None
+        else:
+            pid_txt = pf.read().strip()
+            pid = int(pid_txt) if pid_txt else None
+            # Close only if this method opened the file.
+            pf is not self._pf and pf.close()
+            pid = None if not self.is_running(pid) else pid
+
+        return pid
+
+    def _update_pid_file(self):
+        self._pf.seek(io.SEEK_SET)
+        self._pf.truncate()
+        self._pf.write("{:d}\n".format(os.getpid()))
+        self._pf.flush()
 
     def run(self, *args, **kwards):
         """

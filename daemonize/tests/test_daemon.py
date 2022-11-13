@@ -1,5 +1,5 @@
 #
-# daemonize/tests/text_daemon.py
+# daemonize/tests/test_daemon.py
 #
 
 from datetime import datetime
@@ -42,7 +42,7 @@ def control_daemon(action):
 class BaseTestDaemon(unittest.TestCase):
     #_multiprocess_can_split_ = True
     _multiprocess_shared_ = True
-    pidfile = os.path.join(LOG_PATH, 'testing_daemon.pid')
+    pidfile = os.path.join(LOG_PATH, 'test_daemon.pid')
 
     @property
     def is_pid_file_locked(self):
@@ -78,7 +78,7 @@ class TestRunningDaemon(BaseTestDaemon):
     ## @classmethod
     ## def tearDownClass(cls):
     ##     time.sleep(0.05)
-    ##     cmd = 'rm -f ' + os.path.join(LOG_PATH, 'testing_daemon*')
+    ##     cmd = 'rm -f ' + os.path.join(LOG_PATH, 'test_daemon*')
     ##     os.system(cmd)
 
     def setUp(self):
@@ -191,3 +191,34 @@ class TestDaemonCoverage(BaseTestDaemon):
                     break
 
         self.assertTrue(found)
+
+    #@unittest.skip("Temporarily skipped")
+    def test_is_running(self):
+        """
+        Test is the daemon is running.
+        """
+        pid = os.getpid()
+        result = self._da.is_running(pid)
+        self.assertTrue(result)
+
+    @unittest.skip("Temporarily skipped")
+    def test_get_pid(self):
+        """
+        Test that the pid can be read.
+        """
+        expect_pid = self._da.get_pid()
+        print(os.getpid())
+        self.assertNotEqual(expect_pid, None)
+
+    @unittest.skip("Temporarily skipped")
+    def test__update_pid_file(self):
+        """
+        Test that the pid file can be updated.
+        """
+        self._da.lock_pid_file()
+        pid = self._da.get_pid()
+        self._da._update_pid_file()
+        expect_pid = self._da.get_pid()
+        self.assertNotEqual(expect_pid, pid)
+
+

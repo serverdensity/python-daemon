@@ -16,7 +16,7 @@ continue running in the background. It works on Unix, Linux and OS X, creates
 a PID file and has standard commands (start, stop, restart) plus a foreground
 mode. This current version no longer supports Python 2.
 
-This code is based on the `original version from jejik.com <http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/>`_
+This code is based on the `original version from jejik.com <http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/>`_.
 
 Usage
 =====
@@ -30,7 +30,7 @@ Define a class which inherits from **Daemon** and has a **run()** method
 
    class MyDaemon(Daemon):
 
-       def run(self):
+       def run(self, *args, **kwards):
            # Do stuff
 			
 Create a new object of your class, specifying where you want your PID file
@@ -67,7 +67,7 @@ Continuous Execution
 
 The **run()** method will be executed just once so if you want the daemon to
 be doing stuff continuously you may wish to use the [1]_ sched module to
-execute code repeatedly [2]_ example).
+execute code repeatedly [2]_ example or just use a `while True`.
 
 .. rubric:: Footnotes
 
