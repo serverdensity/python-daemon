@@ -2,9 +2,17 @@
 Python Daemonizer Class
 ***********************
 
-.. image:: https://travis-ci.org/serverdensity/python-daemon.svg?branch=master
-   :target: https://travis-ci.org/serverdensity/python-daemon
+.. image:: http://img.shields.io/pypi/l/python-daemon.svg
+   :target: https://pypi.python.org/pypi/python-daemon
+   :alt: License
+
+.. image:: https://travis-ci.org/cnobile2012/python-daemon.svg?branch=master
+   :target: https://travis-ci.org/cnobile2012/python-daemon
    :alt: Build Status
+
+.. image:: http://img.shields.io/coveralls/cnobile2012/python-daemon/master.svg?branch=master
+   :target: https://coveralls.io/r/cnobile2012/python-daemon?branch=master
+   :alt: Test Coverage
 
 License: `Creative Commons <http://creativecommons.org/licenses/by-sa/3.0/>`_
 

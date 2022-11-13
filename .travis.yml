@@ -2,12 +2,12 @@ sudo: false
 
 language: python
 python:
-  - "2.6"
-  - "2.7"
-  - "3.2"
-  - "3.3"
-  - "3.4"
   - "3.5"
+  - "3.6"
+  - "3.7"
+  - "3.8"
+  - "3.9"
+  - "3.10"
 
 matrix:
   fast_finish: true
@@ -16,12 +16,11 @@ matrix:
       language: generic
       python:
 
-install: "pip install flake8==2.5"
+install: "pip install --upgrade -r requirements/travis.txt"
 
 script:
   - flake8 *.py
-  - python ./test_daemon.py
+  - make tests
 
-notifications:
-  slack:
-    secure: "V9Q1oHrnGwDnQvse0GEmwz4mvihwQYhTLjF2acOqmeC1POkZo18mxqkyjwWFHNr6GxGdUHjjS319tVB6S/MxMJNVo/0cmmSLKkITWBp7alJ6tGTHi4H0UpwWlYGNHVhzlgP4IB1QV2P7AWxr6VlxNHM6GOQJ7oZx3WdsYZfu02c="
+after_success:
+  - coveralls
