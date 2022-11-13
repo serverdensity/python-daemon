@@ -153,6 +153,31 @@ class TestDaemonCoverage(BaseTestDaemon):
 
         self._da = None
 
+    def update_pid_file(self, pid=None, update_pf=False):
+        pid = pid if pid is not None else os.getpid()
+
+        pf = self.get_writable_pid_file_object()
+        pf.write("{:d}\n".format(pid))
+        pf.flush()
+
+        if not update_pf:
+            pf.close()
+        else:
+            self._da._pf = pf
+
+    def get_writable_pid_file_object(self):
+        pf = open(self.pidfile, 'w')
+        pf.seek(io.SEEK_SET)
+        pf.truncate()
+        return pf
+
+    def get_pid(self):
+        with open(self.pidfile, 'r') as pf:
+            pid_txt = pf.read().strip()
+            pid = int(pid_txt) if pid_txt else None
+
+        return pid
+
     #@unittest.skip("Temporarily skipped")
     def test_lock_unlock_pid_file(self):
         """
@@ -193,32 +218,47 @@ class TestDaemonCoverage(BaseTestDaemon):
         self.assertTrue(found)
 
     #@unittest.skip("Temporarily skipped")
-    def test_is_running(self):
+    def test_is_running_RUNNING(self):
         """
-        Test is the daemon is running.
+        Test is the daemon is running in normal operation.
         """
         pid = os.getpid()
         result = self._da.is_running(pid)
         self.assertTrue(result)
 
-    @unittest.skip("Temporarily skipped")
+    #@unittest.skip("Temporarily skipped")
+    def test_is_running_STOPPED(self):
+        """
+        Test is the daemon has stopped.
+        """
+        result = self._da.is_running(None)
+        self.assertFalse(result)
+
+    #@unittest.skip("Temporarily skipped")
+    def test_is_running_NOT_RUNNING(self):
+        """
+        Test is the daemon has stopped.
+        """
+        result = self._da.is_running(123456789) # A bogus pid
+        self.assertFalse(result)
+
+    #@unittest.skip("Temporarily skipped")
     def test_get_pid(self):
         """
         Test that the pid can be read.
         """
+        self.update_pid_file()
         expect_pid = self._da.get_pid()
-        print(os.getpid())
         self.assertNotEqual(expect_pid, None)
 
-    @unittest.skip("Temporarily skipped")
+    #@unittest.skip("Temporarily skipped")
     def test__update_pid_file(self):
         """
         Test that the pid file can be updated.
         """
-        self._da.lock_pid_file()
-        pid = self._da.get_pid()
+        self._da._pf = self.get_writable_pid_file_object()
         self._da._update_pid_file()
-        expect_pid = self._da.get_pid()
-        self.assertNotEqual(expect_pid, pid)
+        expect_pid = self.get_pid()
+        self.assertEqual(expect_pid, os.getpid())
 
 

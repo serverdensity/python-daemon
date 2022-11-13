@@ -336,13 +336,14 @@ class Daemon:
 
         return pid
 
-    def _update_pid_file(self):
+    def _update_pid_file(self, pid=None):
         self._pf.seek(io.SEEK_SET)
         self._pf.truncate()
-        self._pf.write("{:d}\n".format(os.getpid()))
+        pid = pid if pid is not None else os.getpid()
+        self._pf.write("{:d}\n".format(pid))
         self._pf.flush()
 
-    def run(self, *args, **kwards):
+    def run(self, *args, **kwards): # pragma: no cover
         """
         You should override this method when you subclass Daemon. It will
         be called after the process has been daemonized by start() or
