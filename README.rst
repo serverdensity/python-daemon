@@ -2,8 +2,8 @@
 Python Daemonizer Class
 ***********************
 
-.. image:: https://travis-ci.com/cnobile2012/python-daemon.svg?branch=master
-   :target: https://travis-ci.com/cnobile2012/python-daemon
+.. image:: https://api.travis-ci.com/cnobile2012/python-daemon.svg?branch=master
+   :target: https://api.travis-ci.com/cnobile2012/python-daemon
    :alt: Build Status
 
 .. image:: http://img.shields.io/coveralls/cnobile2012/python-daemon/master.svg?branch=master
