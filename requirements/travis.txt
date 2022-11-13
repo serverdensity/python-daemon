@@ -4,5 +4,7 @@
 
 # Test coverage
 coverage
+coverage_enable_subprocess
 coveralls
 flake8
+nose

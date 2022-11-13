@@ -2,12 +2,8 @@ language: python
 
 python:
   - "3.6"
-  - "3.7"
   - "3.8"
   - "3.9"
-  - "3.10"
-
-sudo: false
 
 #matrix:
 #  fast_finish: true
@@ -16,7 +12,8 @@ sudo: false
 #      language: generic
 #      python:
 
-install: "pip install --upgrade -r requirements/travis.txt"
+install:
+  - "pip install --upgrade -r requirements/travis.txt"
 
 script:
   - flake8 *.py
