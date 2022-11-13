@@ -6,8 +6,8 @@ Python Daemonizer Class
    :target: https://pypi.python.org/pypi/python-daemon
    :alt: License
 
-.. image:: https://travis-ci.org/cnobile2012/python-daemon.svg?branch=master
-   :target: https://travis-ci.org/cnobile2012/python-daemon
+.. image:: https://travis-ci.com/cnobile2012/python-daemon.svg?branch=master
+   :target: https://travis-ci.com/cnobile2012/python-daemon
    :alt: Build Status
 
 .. image:: http://img.shields.io/coveralls/cnobile2012/python-daemon/master.svg?branch=master
