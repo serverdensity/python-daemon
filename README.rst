@@ -2,6 +2,10 @@
 Python Daemonizer Class
 ***********************
 
+.. image:: https://img.shields.io/badge/License-CC--0-blue.svg
+   :target: https://creativecommons.org/licenses/by-nd/4.0
+   :alt: License
+
 .. image:: https://api.travis-ci.com/cnobile2012/python-daemon.svg?branch=master
    :target: https://api.travis-ci.com/cnobile2012/python-daemon
    :alt: Build Status
