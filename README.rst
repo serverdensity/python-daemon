@@ -7,7 +7,7 @@ Python Daemonizer Class
    :alt: License
 
 .. image:: https://api.travis-ci.com/cnobile2012/python-daemon.svg?branch=master
-   :target: https://api.travis-ci.com/cnobile2012/python-daemon
+   :target: https://app.travis-ci.com/cnobile2012/python-daemon
    :alt: Build Status
 
 .. image:: https://coveralls.io/repos/github/cnobile2012/python-daemon/badge.svg?branch=master
