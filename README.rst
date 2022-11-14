@@ -10,8 +10,8 @@ Python Daemonizer Class
    :target: https://api.travis-ci.com/cnobile2012/python-daemon
    :alt: Build Status
 
-.. image:: http://img.shields.io/coveralls/cnobile2012/python-daemon/master.svg?branch=master
-   :target: https://coveralls.io/r/cnobile2012/python-daemon?branch=master
+.. image:: https://coveralls.io/repos/github/cnobile2012/python-daemon/badge.svg?branch=master
+   :target: https://coveralls.io/github/cnobile2012/python-daemon?branch=master
    :alt: Test Coverage
 
 License: `Creative Commons <http://creativecommons.org/licenses/by-sa/3.0/>`_
