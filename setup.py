@@ -3,6 +3,7 @@ import os
 import re
 from setuptools import setup
 
+
 def version():
     regex = r'^(?m){}[\s]*=[\s]*(?P<ver>\d*)$'
 
@@ -14,8 +15,10 @@ def version():
     patch = re.search(regex.format('PATCHLEVEL'), ver).group('ver')
     return "{}.{}.{}".format(major, minor, patch)
 
+
 with open(os.path.join(os.path.dirname(__file__), 'README.rst')) as readme:
     README = readme.read()
+
 
 setup(
     name="python-daemon",
