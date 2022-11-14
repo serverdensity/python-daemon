@@ -20,9 +20,11 @@ Overview
 ========
 
 This is a Python class that will daemonize your Python script so it can
-continue running in the background. It works on Unix, Linux and OS X, creates
-a PID file and has standard commands (start, stop, restart) plus a foreground
-mode. This current version no longer supports Python 2.
+continue running in the background. It works on Unix and Linux, creates a PID
+file and has standard commands (start, stop, restart) plus a foreground mode.
+The pid file will withstand a system crash and does not need to be removed,
+because the daemon uses system file locks to determine if it is running. This
+current version no longer supports Python 2.
 
 This code is based on the `original version from jejik.com <http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/>`_.
 
