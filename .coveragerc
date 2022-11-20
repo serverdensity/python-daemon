@@ -1,6 +1,7 @@
 [run]
 omit =
     *tests*
+    *.virtualenvs/daemon/*
 
 [report]
 show_missing = True
