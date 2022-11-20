@@ -337,6 +337,8 @@ class TestDaemonCoverage(BaseTestDaemon):
             self._da.daemonize()
 
         self.assertEqual(0, e.exception.code)
+        # Read the log file
+        self.read_logfile("1st fork was successful with pid ")
 
         da = Daemon(self.pidfile, verbose=2, use_eventlet=True)
 
@@ -344,6 +346,8 @@ class TestDaemonCoverage(BaseTestDaemon):
             da.daemonize()
 
         self.assertEqual(0, e.exception.code)
+        # Read the log file
+        self.read_logfile("1st fork was successful with pid ")
 
     #@unittest.skip("Temporarily skipped")
     @patch.object(Daemon, '_redirect', redirect)
@@ -351,15 +355,19 @@ class TestDaemonCoverage(BaseTestDaemon):
     @patch('os.fork', fork1)
     def test_daemonize_fork_2(self):
         """
-        Test that the daemonize function forks properly. We cannot really
-        do any asserts in this tests, so we just look for coverage without
-        breaking.
+        Test that the daemonize function forks properly.
         """
         self._da.daemonize()
+        # Read the log file
+        self.read_logfile(["1st fork was successful with pid ",
+                           "2nd fork was successful with pid "])
 
         da = Daemon(self.pidfile, verbose=2, use_gevent=True)
 
         da.daemonize()
+        # Read the log file
+        self.read_logfile(["1st fork was successful with pid ",
+                           "2nd fork was successful with pid "])
 
     #@unittest.skip("Temporarily skipped")
     @patch.object(Daemon, '_redirect', redirect)
@@ -412,3 +420,18 @@ class TestDaemonCoverage(BaseTestDaemon):
         # Read the log file
         self.read_logfile("...Stopped")
 
+    #@unittest.skip("Temporarily skipped")
+    @patch('os.dup2', dup2)
+    def test__redirect(self):
+        """
+        Test that the _redirect method works properly.
+        """
+        # Test with stderr
+        self._da._redirect()
+        # Read the log file
+        self.read_logfile(["Starting redirect...", "...Ending redirect"])
+        # Test without stderr
+        da = Daemon(self.pidfile, stderr=None, verbose=2, use_gevent=True)
+        da._redirect()
+        # Read the log file
+        self.read_logfile(["Starting redirect...", "...Ending redirect"])

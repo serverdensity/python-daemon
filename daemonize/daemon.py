@@ -128,6 +128,8 @@ class Daemon:
             logging.shutdown()
             sys.exit(1)
         else:
+            self._log.debug("1st fork was successful with pid %s", pid)
+
             if pid > 0:
                 # Exit first parent
                 logging.shutdown()
@@ -146,7 +148,9 @@ class Daemon:
             logging.shutdown()
             sys.exit(2)
         else:
-            if pid > 0:
+            self._log.debug("2nd fork was successful with pid %s", pid)
+
+            if pid > 0: # pragma: no cover
                 # Exit from second parent
                 logging.shutdown()
                 sys.exit(0)
@@ -154,7 +158,7 @@ class Daemon:
         if sys.platform != 'darwin':  # This block breaks on OS X
             self._redirect()
 
-        def sigtermhandler(signum, frame):
+        def sigtermhandler(signum, frame): # pragma: no cover
             if self.get_pid():
                 self._stop()
 
@@ -170,7 +174,10 @@ class Daemon:
             signal.signal(signal.SIGINT, sigtermhandler)
 
     def _redirect(self):
-        # Redirect standard file descriptors
+        """
+        Redirect standard file descriptors.
+        """
+        self._log.debug("Starting redirect...")
         sys.stdin.flush()
         sys.stdout.flush()
         sys.stderr.flush()
@@ -193,7 +200,11 @@ class Daemon:
         os.dup2(fd_se, sys.stderr.fileno())
         os.close(fd_si)
         os.close(fd_so)
-        os.close(fd_se)
+
+        if self.stderr:
+            os.close(fd_se)
+
+        self._log.debug("...Ending redirect")
 
     def lock_pid_file(self):
         """
