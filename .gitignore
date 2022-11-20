@@ -11,4 +11,4 @@ build/*
 *.txt
 !requirements/*
 docs/htmlcov/*
-*.virtualenvs/daemon/*
+/home/travis/virtualenv/*
