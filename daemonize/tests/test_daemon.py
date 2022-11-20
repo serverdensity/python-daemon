@@ -140,11 +140,11 @@ def redirect(self):
     pass
 
 
-def fork0():
+def fork1():
     return os.getpid()
 
 
-def fork1():
+def fork2():
     return 0
 
 
@@ -327,7 +327,7 @@ class TestDaemonCoverage(BaseTestDaemon):
 
     #@unittest.skip("Temporarily skipped")
     @patch('logging.shutdown', shutdown)
-    @patch('os.fork', fork0)
+    @patch('os.fork', fork1)
     def test_daemonize_fork_1(self):
         """
         Test that the daemonize function forks properly with and without
@@ -352,7 +352,7 @@ class TestDaemonCoverage(BaseTestDaemon):
     #@unittest.skip("Temporarily skipped")
     @patch.object(Daemon, '_redirect', redirect)
     @patch('os.setsid', setsid)
-    @patch('os.fork', fork1)
+    @patch('os.fork', fork2)
     def test_daemonize_fork_2(self):
         """
         Test that the daemonize function forks properly.
@@ -371,7 +371,7 @@ class TestDaemonCoverage(BaseTestDaemon):
 
     #@unittest.skip("Temporarily skipped")
     @patch.object(Daemon, '_redirect', redirect)
-    @patch('os.fork', fork1)
+    @patch('os.fork', fork2)
     def test_start(self):
         """
         Test the start method.
@@ -394,7 +394,7 @@ class TestDaemonCoverage(BaseTestDaemon):
         self.update_pid_file()
         self._da.stop()
         # Read the log file
-        self.read_logfile(["Stopping...", "...Stopped"])
+        self.read_logfile(["Stopping...", "Trying SIGTERM ", "...Stopped"])
 
     #@unittest.skip("Temporarily skipped")
     @patch.object(Daemon, 'get_pid', get_pid_2)

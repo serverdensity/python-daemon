@@ -200,10 +200,7 @@ class Daemon:
         os.dup2(fd_se, sys.stderr.fileno())
         os.close(fd_si)
         os.close(fd_so)
-
-        if self.stderr:
-            os.close(fd_se)
-
+        if self.stderr: os.close(fd_se)
         self._log.debug("...Ending redirect")
 
     def lock_pid_file(self):
@@ -289,7 +286,7 @@ class Daemon:
 
             while True:
                 i += 1
-                self._log.debug("Trying SIGTERM %s times.", i)
+                self._log.debug("Trying SIGTERM %s time(s).", i)
                 os.kill(pid, signal.SIGTERM)
                 time.sleep(0.2)
 
@@ -387,7 +384,7 @@ if __name__ == '__main__': # pragma: no cover
                 time.sleep(1.0)
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    log_path = os.path.join(base_dir, 'logs')
+    log_path = os.path.abspath(os.path.join(base_dir, '..', 'logs'))
     not os.path.isdir(log_path) and os.mkdir(log_path, 0o0775)
     pidfile = os.path.abspath(os.path.join(log_path, 'daemon.pid'))
     log_format = ("%(asctime)s %(levelname)s %(name)s %(funcName)s "

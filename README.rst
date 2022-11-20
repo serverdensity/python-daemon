@@ -42,7 +42,7 @@ Define a class which inherits from **Daemon** and has a **run()** method
 
        def run(self, *args, **kwards):
            # Do stuff
-			
+
 Create a new object of your class, specifying where you want your PID file
 to exist:
 
