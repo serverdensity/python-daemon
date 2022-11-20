@@ -178,12 +178,14 @@ def is_running(self, pid):
 
 
 class TestDaemonCoverage(BaseTestDaemon):
+    _log = logging.getLogger()
 
     @classmethod
     def setUpClass(cls):
         create_logger()
 
     def setUp(self):
+        self.truncate_log_file(self.id())
         self._da = Daemon(self.pidfile, verbose=2)
 
     def tearDown(self):
@@ -215,27 +217,37 @@ class TestDaemonCoverage(BaseTestDaemon):
 
         return pid
 
-    def read_logfile(self, message):
+    def read_logfile(self, messages):
         """
         Read the log file
         """
+        messages = messages if isinstance(messages, list) else [messages]
         full_path = os.path.abspath(os.path.join(LOG_PATH, LOG_FILE))
         found = False
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        now = datetime.now().strftime('%Y-%m-%d %H:%M')
 
         with open(full_path, 'r') as lf:
             data = lf.readlines()
-            # Reverse all the lines in the log file so we can search
-            # from the bottom up.
-            data = data[::-1]
 
-            for line in data:
-                # Be sure we have this test run.
-                if (line.startswith(now) and message in line):
-                    found = True
-                    break
+            for message in messages:
+                for line in data:
+                    # Be sure we have this test run.
+                    if (line.startswith(now) and message in line):
+                        found = True
+                        break
 
-        self.assertTrue(found)
+                msg = (f"Could not find '{message}' with data {now} "
+                       f"in log file {data}.")
+                self.assertTrue(found, msg=msg)
+
+    def truncate_log_file(self, test):
+        full_path = os.path.abspath(os.path.join(LOG_PATH, LOG_FILE))
+
+        with open(full_path, 'w') as f:
+            f.seek(io.SEEK_SET)
+            f.truncate()
+
+        self._log.info("Current test is: %s", test)
 
     #@unittest.skip("Temporarily skipped")
     def test_lock_unlock_pid_file(self):
@@ -374,8 +386,7 @@ class TestDaemonCoverage(BaseTestDaemon):
         self.update_pid_file()
         self._da.stop()
         # Read the log file
-        self.read_logfile("Stopping...")
-        self.read_logfile("...Stopped")
+        self.read_logfile(["Stopping...", "...Stopped"])
 
     #@unittest.skip("Temporarily skipped")
     @patch.object(Daemon, 'get_pid', get_pid_2)
