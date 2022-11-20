@@ -131,9 +131,50 @@ class TestRunningDaemon(BaseTestDaemon):
         self.assertNotEqual(pid1, pid2)
 
 
-# Used to override the sys.exit function in daemon.py.
-def exit(value):
+# Mock functions
+def shutdown():
     pass
+
+
+def redirect(self):
+    pass
+
+
+def fork0():
+    return os.getpid()
+
+
+def fork1():
+    return 0
+
+
+def dup2(fd, fd2):
+    pass
+
+
+def setsid():
+    pass
+
+
+def kill(pid, signal):
+    pass
+
+
+def get_pid_1(self):
+    return os.getpid()
+
+
+def get_pid_2(self):
+    return 0
+
+
+def _stop(self):
+    pass
+
+
+def is_running(self, pid):
+    return False
+# End mock functions
 
 
 class TestDaemonCoverage(BaseTestDaemon):
@@ -153,17 +194,13 @@ class TestDaemonCoverage(BaseTestDaemon):
 
         self._da = None
 
-    def update_pid_file(self, pid=None, update_pf=False):
+    def update_pid_file(self, pid=None):
         pid = pid if pid is not None else os.getpid()
 
         pf = self.get_writable_pid_file_object()
         pf.write("{:d}\n".format(pid))
         pf.flush()
-
-        if not update_pf:
-            pf.close()
-        else:
-            self._da._pf = pf
+        self._da._pf = pf
 
     def get_writable_pid_file_object(self):
         pf = open(self.pidfile, 'w')
@@ -178,6 +215,28 @@ class TestDaemonCoverage(BaseTestDaemon):
 
         return pid
 
+    def read_logfile(self, message):
+        """
+        Read the log file
+        """
+        full_path = os.path.abspath(os.path.join(LOG_PATH, LOG_FILE))
+        found = False
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        with open(full_path, 'r') as lf:
+            data = lf.readlines()
+            # Reverse all the lines in the log file so we can search
+            # from the bottom up.
+            data = data[::-1]
+
+            for line in data:
+                # Be sure we have this test run.
+                if (line.startswith(now) and message in line):
+                    found = True
+                    break
+
+        self.assertTrue(found)
+
     #@unittest.skip("Temporarily skipped")
     def test_lock_unlock_pid_file(self):
         """
@@ -189,7 +248,7 @@ class TestDaemonCoverage(BaseTestDaemon):
         self.assertFalse(self.is_pid_file_locked)
 
     #@unittest.skip("Temporarily skipped")
-    @patch('sys.exit', exit)
+    #@patch('sys.exit', exit)
     def test_cannot_lock_twice(self):
         """
         Try to lock the pid file more than once. 2nd time should fail.
@@ -200,22 +259,15 @@ class TestDaemonCoverage(BaseTestDaemon):
         self.assertTrue(self.is_pid_file_locked)
         # Try second lock
         da = Daemon(self.pidfile, verbose=2)
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        da.lock_pid_file()
+
+        with self.assertRaises(SystemExit) as e:
+            ret = da.lock_pid_file()
+
+        self.assertEqual(3, e.exception.code)
         self.assertTrue(self.is_pid_file_locked)
 
         # Read the log file
-        full_path = os.path.abspath(os.path.join(LOG_PATH, LOG_FILE))
-        found = False
-
-        with open(full_path, 'r') as lf:
-            for line in lf:
-                if (line.startswith(now) # Be sure we have this test run.
-                    and "Another process has a lock" in line):
-                    found = True
-                    break
-
-        self.assertTrue(found)
+        self.read_logfile("Another process has a lock")
 
     #@unittest.skip("Temporarily skipped")
     def test_is_running_RUNNING(self):
@@ -261,4 +313,91 @@ class TestDaemonCoverage(BaseTestDaemon):
         expect_pid = self.get_pid()
         self.assertEqual(expect_pid, os.getpid())
 
+    #@unittest.skip("Temporarily skipped")
+    @patch('logging.shutdown', shutdown)
+    @patch('os.fork', fork0)
+    def test_daemonize_fork_1(self):
+        """
+        Test that the daemonize function forks properly with and without
+        eventlet.
+        """
+        with self.assertRaises(SystemExit) as e:
+            self._da.daemonize()
+
+        self.assertEqual(0, e.exception.code)
+
+        da = Daemon(self.pidfile, verbose=2, use_eventlet=True)
+
+        with self.assertRaises(SystemExit) as e:
+            da.daemonize()
+
+        self.assertEqual(0, e.exception.code)
+
+    #@unittest.skip("Temporarily skipped")
+    @patch.object(Daemon, '_redirect', redirect)
+    @patch('os.setsid', setsid)
+    @patch('os.fork', fork1)
+    def test_daemonize_fork_2(self):
+        """
+        Test that the daemonize function forks properly. We cannot really
+        do any asserts in this tests, so we just look for coverage without
+        breaking.
+        """
+        self._da.daemonize()
+
+        da = Daemon(self.pidfile, verbose=2, use_gevent=True)
+
+        da.daemonize()
+
+    #@unittest.skip("Temporarily skipped")
+    @patch.object(Daemon, '_redirect', redirect)
+    @patch('os.fork', fork1)
+    def test_start(self):
+        """
+        Test the start method.
+        """
+        with self.assertRaises(NotImplementedError) as e:
+            self._da.start()
+
+        self.assertEqual(str(e.exception),
+                         "The run() method must be implemented.")
+
+    #@unittest.skip("Temporarily skipped")
+    @patch.object(Daemon, 'is_running', is_running)
+    @patch.object(Daemon, '_stop', _stop)
+    @patch('os.kill', kill)
+    @patch.object(Daemon, 'get_pid', get_pid_1)
+    def test_stop_NORMAL(self):
+        """
+        Test that stop works correctly.
+        """
+        self.update_pid_file()
+        self._da.stop()
+        # Read the log file
+        self.read_logfile("Stopping...")
+        self.read_logfile("...Stopped")
+
+    #@unittest.skip("Temporarily skipped")
+    @patch.object(Daemon, 'get_pid', get_pid_2)
+    def test_stop_NO_PID(self):
+        """
+        Test that a missing pid in the stop() method returns correctly.
+        """
+        self._da.stop()
+        # Read the log file
+        self.read_logfile("does not exist. Not running?")
+
+    #@unittest.skip("Temporarily skipped")
+    @patch('logging.shutdown', shutdown)
+    def test__stop(self):
+        """
+        Test that the method _stop() exits properly.
+        """
+        with self.assertRaises(SystemExit) as e:
+            ret = self._da._stop()
+
+        self.assertEqual(6, e.exception.code)
+        self.assertFalse(self.is_pid_file_locked)
+        # Read the log file
+        self.read_logfile("...Stopped")
 

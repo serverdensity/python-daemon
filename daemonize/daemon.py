@@ -123,7 +123,7 @@ class Daemon:
 
         try:
             pid = os.fork()
-        except OSError as e:
+        except OSError as e: # pragma: no cover
             self._log.error("Fork #1 failed: %d (%s)\n", e.errno, e.strerror)
             logging.shutdown()
             sys.exit(1)
@@ -141,7 +141,7 @@ class Daemon:
         # Do second fork
         try:
             pid = os.fork()
-        except OSError as e:
+        except OSError as e: # pragma: no cover
             self._log.error("Fork #2 failed: %d (%s)\n", e.errno, e.strerror)
             logging.shutdown()
             sys.exit(2)
@@ -152,24 +152,7 @@ class Daemon:
                 sys.exit(0)
 
         if sys.platform != 'darwin':  # This block breaks on OS X
-            # Redirect standard file descriptors
-            sys.stdout.flush()
-            sys.stderr.flush()
-            si = open(self.stdin, 'r')
-            so = open(self.stdout, 'a+')
-
-            if self.stderr:
-                try:
-                    se = open(self.stderr, 'a+', 0)
-                except ValueError:
-                    # Python 3 can't have unbuffered text I/O
-                    se = open(self.stderr, 'a+', 1)
-            else:
-                se = so
-
-            os.dup2(si.fileno(), sys.stdin.fileno())
-            os.dup2(so.fileno(), sys.stdout.fileno())
-            os.dup2(se.fileno(), sys.stderr.fileno())
+            self._redirect()
 
         def sigtermhandler(signum, frame):
             if self.get_pid():
@@ -178,11 +161,39 @@ class Daemon:
         if self.use_gevent:
             import gevent
             gevent.reinit()
-            gevent.signal(signal.SIGTERM, sigtermhandler, signal.SIGTERM, None)
-            gevent.signal(signal.SIGINT, sigtermhandler, signal.SIGINT, None)
+            gevent.signal_handler(signal.SIGTERM, sigtermhandler,
+                                  signal.SIGTERM, None)
+            gevent.signal_handler(signal.SIGINT, sigtermhandler,
+                                  signal.SIGINT, None)
         else:
             signal.signal(signal.SIGTERM, sigtermhandler)
             signal.signal(signal.SIGINT, sigtermhandler)
+
+    def _redirect(self):
+        # Redirect standard file descriptors
+        sys.stdin.flush()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        fd_si = os.open(self.stdin, os.O_RDWR)
+        fd_so = os.open(self.stdout, os.O_RDWR)
+
+        if self.stderr:
+            fd_se = os.open(self.stderr, os.O_RDWR)
+        else:
+            fd_se = fd_so
+
+        os.dup2(fd_si, sys.stdin.fileno())
+
+        try:
+            #https://stackoverflow.com/questions/10029697/file-descriptors-redirecting-is-stuck
+            os.dup2(fd_so, sys.stdout.fileno())
+        except io.UnsupportedOperation:
+            pass
+
+        os.dup2(fd_se, sys.stderr.fileno())
+        os.close(fd_si)
+        os.close(fd_so)
+        os.close(fd_se)
 
     def lock_pid_file(self):
         """
@@ -271,30 +282,33 @@ class Daemon:
                 os.kill(pid, signal.SIGTERM)
                 time.sleep(0.2)
 
-                if i % 10 == 0:
+                if i % 10 == 0: # pragma: no cover
                     self._log.debug("Trying SIGKILL.")
                     os.kill(pid, signal.SIGKILL)
 
                 if not self.is_running(pid): break
-        except OSError as e:
+        except OSError as e: # pragma: no cover
             self._log.error(e)
-            self.stop_callback()
-            logging.shutdown()
             sys.exit(5)
-
-        self.stop_callback()
-        self._log.info("...Stopped")
+        finally:
+            self.stop_callback()
+            self._log.info("...Stopped")
+            logging.shutdown()
 
     def _stop(self):
         self.unlock_pid_file()
         self.stop_callback()
         logging.shutdown()
+        self._log.info("...Stopped")
         sys.exit(6)
 
     def stop_callback(self):
+        """
+        Override this callback if you need to do something before exiting.
+        """
         return
 
-    def restart(self):
+    def restart(self): # pragma: no cover
         """
         Restart the daemon
         """
@@ -323,16 +337,13 @@ class Daemon:
 
     def get_pid(self):
         try:
-            pf = open(self.pidfile, 'r') if not self._pf else self._pf
+            with open(self.pidfile, 'r') as pf:
+                pid_txt = pf.read().strip()
+                pid = int(pid_txt) if pid_txt else None
+                pid = None if not self.is_running(pid) else pid
         except (IOError, SystemExit) as e: # pragma: no cover
             self._log.error("Could not open pid file %s, %s", self.pidfile, e)
             pid = None
-        else:
-            pid_txt = pf.read().strip()
-            pid = int(pid_txt) if pid_txt else None
-            # Close only if this method opened the file.
-            pf is not self._pf and pf.close()
-            pid = None if not self.is_running(pid) else pid
 
         return pid
 
