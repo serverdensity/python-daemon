@@ -340,15 +340,6 @@ class TestDaemonCoverage(BaseTestDaemon):
         # Read the log file
         self.read_logfile("1st fork was successful with pid ")
 
-        da = Daemon(self.pidfile, verbose=2, use_eventlet=True)
-
-        with self.assertRaises(SystemExit) as e:
-            da.daemonize()
-
-        self.assertEqual(0, e.exception.code)
-        # Read the log file
-        self.read_logfile("1st fork was successful with pid ")
-
     #@unittest.skip("Temporarily skipped")
     @patch.object(Daemon, '_redirect', redirect)
     @patch('os.setsid', setsid)

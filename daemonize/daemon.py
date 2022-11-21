@@ -29,6 +29,9 @@ Changes:  23rd Jan 2009 (David Mytton <david@boxedice.com>)
             send messages to a log file.
           10th Nov 2022 (Carl Nobile <carl.nobile@gmail.com>)
           - Removed support for Python 2.
+          20th Nov 2022 (Carl Nobile <carl.nobile@gmail.com>)
+          - Fixed a few bug with how redirecting of stdin, stdout, and
+            stderr was being done.
 
 Exit values
 -----------
@@ -57,12 +60,12 @@ class Daemon:
     """
     A generic daemon class.
 
-    Usage: subclass the Daemon class and override the run() method
+    Usage: subclass the Daemon class and override the run() method.
     """
 
     def __init__(self, pidfile, stdin=os.devnull, stdout=os.devnull,
                  stderr=os.devnull, base_dir='.', umask=0o22, verbose=1,
-                 use_gevent=False, use_eventlet=False, logger_name=''):
+                 use_gevent=False, logger_name=''):
         """
         Constructor take the following positional and keyword arguments.
 
@@ -82,11 +85,11 @@ class Daemon:
         :param verbose: Sets the logger to various levels. (1 = INFO,
                         2 = DEBUG, 3 = ERROR, any other number is WARNING)
         :type verbose: int
-        :param use_gevent: Use gevent for signals (defaults to False).
-        :type use_gevent: bool
         :param use_eventlet: Use eventlet to kill all processes (defaults
                              to False).
         :type use_eventlet: bool
+        :param use_gevent: Use gevent for signals (defaults to False).
+        :type use_gevent: bool
         :param logger_name: The name of the pre defines logger (default is ''
                             (root)).
         """
@@ -98,7 +101,6 @@ class Daemon:
         self.verbose = verbose
         self.umask = umask
         self.use_gevent = use_gevent
-        self.use_eventlet = use_eventlet
         self._pf = None
         self._log = logging.getLogger(logger_name)
 
@@ -117,10 +119,6 @@ class Daemon:
         Programming in the UNIX Environment' for details (ISBN 0201563177)
         http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
         """
-        if self.use_eventlet:
-            import eventlet.tpool
-            eventlet.tpool.killall()
-
         try:
             pid = os.fork()
         except OSError as e: # pragma: no cover

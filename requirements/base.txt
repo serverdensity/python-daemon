@@ -1,4 +1,3 @@
 # Base requirements for all environments.
 
-eventlet
 gevent
