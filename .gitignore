@@ -1,1 +1,14 @@
-*.pyc
+*.py[cod]
+*.*~
+.#*
+*#*#
+*~
+.DS_Store
+
+logs/*
+build/*
+.coverage
+*.txt
+!requirements/*
+docs/htmlcov/*
+/home/travis/virtualenv/*

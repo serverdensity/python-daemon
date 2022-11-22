@@ -1,0 +1,10 @@
+# Travis only pip packages.
+
+-r base.txt
+
+# Test coverage
+coverage
+coverage_enable_subprocess
+coveralls
+flake8
+nose

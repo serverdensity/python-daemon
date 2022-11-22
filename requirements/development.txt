@@ -1,0 +1,13 @@
+# Import the base requirements
+-r base.txt
+
+# Test coverage
+coverage
+coverage_enable_subprocess
+wheel
+twine
+mock
+nose
+
+# Utils
+ipython
