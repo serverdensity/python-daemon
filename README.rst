@@ -50,9 +50,17 @@ which is what will be called once the daemonization is completed.
        def run(self, *args, **kwards):
            # Do stuff
 
+       def stop_callback(self):
+           # Do anything you need to do before a signal shuts
+           # down your daemon.
+
 A while loop set to True will usually work fine in the **run()** method or you
 could use something more sophisticated as mentioned below in the last paragraph
 under Continuous Execution.
+
+There is also a **stop_callback** method that can be overridden in your
+sub-class to the **Daemon** class. It gives your daemon the ability to perform
+certain tasks before a shutdown is performed, like closing files etc.
 
 Create a new object of your class, specifying where you want your PID file
 to exist:

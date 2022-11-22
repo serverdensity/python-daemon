@@ -301,8 +301,8 @@ class Daemon:
     def _stop(self):
         self.unlock_pid_file()
         self.stop_callback()
-        logging.shutdown()
         self._log.info("...Stopped")
+        logging.shutdown()
         sys.exit(6)
 
     def stop_callback(self):
