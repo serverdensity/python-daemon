@@ -50,6 +50,10 @@ which is what will be called once the daemonization is completed.
        def run(self, *args, **kwards):
            # Do stuff
 
+A while loop set to True will usually work fine in the **run()** method or you
+could use something more sophisticated as mentioned below in the last paragraph
+under Continuous Execution.
+
 Create a new object of your class, specifying where you want your PID file
 to exist:
 
@@ -64,7 +68,7 @@ There are a lot of arguments that can be used in the constructor of the
 Positional Arguments
 --------------------
 
-- pidfile: Manditory fullpath including file name of the pid file.
+- pidfile: Mandatory fullpath including file name of the pid file.
 
 Keyword Arguments
 -----------------
@@ -73,7 +77,7 @@ Keyword Arguments
 - stdout: The output data stream, defaults to `os.devnull`.
 - stderr: The error data stream, defaults to `os.devnull`.
 - base_dir: The absolute or relative path to the directory that will be used
-  after the process is detached from the terminal, defaults to `.` (current
+  after the process is detached from the terminal, defaults to `'.'` (current
   working directory).
 - umask: The mask used for any files created by the daemon, defaults to `0o22`.
 - verbose: The default logging level. The values `1 = INFO`, `2 = DEBUG`, `3 =

@@ -85,9 +85,6 @@ class Daemon:
         :param verbose: Sets the logger to various levels. (1 = INFO,
                         2 = DEBUG, 3 = ERROR, any other number is WARNING)
         :type verbose: int
-        :param use_eventlet: Use eventlet to kill all processes (defaults
-                             to False).
-        :type use_eventlet: bool
         :param use_gevent: Use gevent for signals (defaults to False).
         :type use_gevent: bool
         :param logger_name: The name of the pre defines logger (default is ''
