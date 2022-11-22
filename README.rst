@@ -102,6 +102,24 @@ Run Actions
 2. **stop()** -- Stops the daemon (stops the child process and removes the PID).
 3. **restart()** -- Does a **stop()** and then **start()**.
 
+To start, restart, and stop the test daemon that is at the end of the
+`daemonize/daemon.py` code see below. Just substitute your code for the code
+below.
+
+.. code-block:: bash
+
+   $ ps -ajx | grep daemonize/daemon | grep -v grep # No daemon running
+   $ python daemonize/daemon.py start
+   $ ps -ajx | grep daemonize/daemon | grep -v grep
+   PPID     PID    PGID     SID TTY        TPGID STAT   UID   TIME COMMAND
+      1  425677  425676  425676 ?             -1 S     1000   0:00 python daemonize/daemon.py start
+   $ python daemonize/daemon.py restart
+   $ ps -ajx | grep daemonize/daemon | grep -v grep
+   PPID     PID    PGID     SID TTY        TPGID STAT   UID   TIME COMMAND
+      1  425823  425822  425822 ?             -1 S     1000   0:00 python daemonize/daemon.py restart
+   $ python daemonize/daemon.py stop
+   $ ps -ajx | grep daemonize/daemon | grep -v grep # No daemon running
+
 Foreground
 ==========
 
